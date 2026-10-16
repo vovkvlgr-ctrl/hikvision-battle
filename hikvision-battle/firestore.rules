@@ -1,0 +1,56 @@
+rules_version = '2';
+// Hikvision Battle · правила доступу до бази
+// Організатори: Google-акаунти зі списку нижче (той самий список, що й OWNERS у index.html).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in ['vovkvlgr@gmail.com'];
+    }
+
+    // Налаштування, сезони, ігри, питання: читають усі учасники, змінює лише організатор
+    match /cfg/{id}       { allow read: if signedIn(); allow write: if isOwner(); }
+    match /seasons/{id}   { allow read: if signedIn(); allow write: if isOwner(); }
+    match /games/{id}     { allow read: if signedIn(); allow write: if isOwner(); }
+    match /questions/{id} { allow read: if signedIn(); allow write: if isOwner(); }
+
+    // Коди команд у відкритому вигляді: бачить лише організатор
+    match /secret/{id}    { allow read, write: if isOwner(); }
+
+    // Ключі кодів: документ можна відкрити, лише знаючи код (переліку немає)
+    match /keys/{hash} {
+      allow get: if signedIn();
+      allow list: if isOwner();
+      allow write: if isOwner();
+    }
+
+    // Вхід команди в гру: дозволено лише з дійсним кодом цієї гри і цієї команди
+    match /claims/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id == request.resource.data.gid + '__' + request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['gid', 'team', 'uid', 'key', 'at'])
+        && request.resource.data.key is string
+        && exists(/databases/$(database)/documents/keys/$(request.resource.data.key))
+        && get(/databases/$(database)/documents/keys/$(request.resource.data.key)).data.gid == request.resource.data.gid
+        && get(/databases/$(database)/documents/keys/$(request.resource.data.key)).data.team == request.resource.data.team
+        && request.resource.data.at is number
+        && request.resource.data.at > request.time.toMillis() - 120000
+        && request.resource.data.at < request.time.toMillis() + 120000;
+      allow delete: if isOwner();
+    }
+
+    // Відповіді: кожен пристрій пише лише свій документ
+    match /answers/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && (request.auth.uid == uid || isOwner());
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}
