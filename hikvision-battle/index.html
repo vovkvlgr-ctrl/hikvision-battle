@@ -1623,21 +1623,25 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
     whoosh(){noise(0,.7,250,4200,.22,1.4);glide(.05,.6,hellish()?90:220,hellish()?260:660,.08,'triangle')},
     swoosh(){noise(0,.35,3000,600,.12,1.6)},
     fanfare(){const ch=[[60,64,67],[65,69,72],[67,71,74],[72,76,79,84]],d=[0,.22,.44,.7];ch.forEach((c,i)=>c.forEach(n=>note(n,d[i],i===3?1.8:.5,.12,1.1)))},
-    round(){[60,67,72].forEach((n,i)=>note(n,i*.09,.6,.14))}
+    round(){[60,67,72].forEach((n,i)=>note(n,i*.09,.6,.14))},
+    blip(ok){if(ok)note(hellish()?79:88,0,.35,.07,.6);else note(hellish()?50:57,0,.3,.06,.3)},
+    click(){const t=ctx.currentTime,o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';o.frequency.value=hellish()?420:1250;
+      g.gain.setValueAtTime(.06,t);g.gain.exponentialRampToValueAtTime(.001,t+.04);o.connect(g);out(g,0);o.start(t);o.stop(t+.05)}
   };
 
   /* ---- announcer voice: processed files in voice/, browser speech as fallback ---- */
   const VOICE={round1:'Раунд перший! Бій!',round2:'Раунд другий! Бій!',round3:'Раунд третій! Бій!',round4:'Раунд четвертий! Бій!',round5:'Раунд п’ятий! Бій!',
-    finish:'Добий!',diamond:'Діамант!',ruby:'Рубін!',crush:'Нищівно!',perfect:'Ідеально!',lastmin:'Остання хвилина!',superfinal:'Суперфінал!',victory:'Перемога!',gameover:'Гру завершено!'};
+    finish:'Добий!',diamond:'Діамант!',ruby:'Рубін!',crush:'Нищівно!',perfect:'Ідеально!',lastmin:'Остання хвилина!',superfinal:'Суперфінал!',victory:'Перемога!',gameover:'Гру завершено!',leader:'Новий лідер!',start:'Гра починається! Бій!'};
+  const COOL={leader:20,diamond:3,ruby:3,crush:4},said={};
   const buf={},miss={};let speaking=0;
   async function load(k){if(buf[k]||miss[k])return buf[k];try{const r=await fetch('voice/'+k+'.mp3');if(!r.ok)throw 0;buf[k]=await ctx.decodeAudioData(await r.arrayBuffer())}catch(e){miss[k]=1}return buf[k]}
   async function say(k,delay=0){
-    if(!ready()||!VOICE[k])return;const now=ctx.currentTime;if(now<speaking)return;   /* never talk over itself */
-    const b=await load(k);
+    if(!ready()||!VOICE[k])return;const now=ctx.currentTime;if(now<speaking)return;if(COOL[k]&&said[k]&&now-said[k]<COOL[k])return;said[k]=now;   /* never talk over itself */
+    window.__sndLog&&__sndLog.push('say:'+k);const b=await load(k);
     if(b){const s=ctx.createBufferSource(),g=ctx.createGain();g.gain.value=1.15;s.buffer=b;s.connect(g);g.connect(master);const t=ctx.currentTime+delay;s.start(t);speaking=t+b.duration;return}
     if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(VOICE[k]);u.lang='uk-UA';u.pitch=.6;u.rate=.92;u.volume=.9;
       const v=speechSynthesis.getVoices().find(v=>/^uk/i.test(v.lang));if(v)u.voice=v;speaking=ctx.currentTime+1.6;setTimeout(()=>speechSynthesis.speak(u),delay*1000)}}
-  const play=(k,...a)=>{if(ready())try{SFX[k](...a)}catch(e){}};
+  const play=(k,...a)=>{if(ready())try{SFX[k](...a);window.__sndLog&&__sndLog.push(k)}catch(e){}};
   window.HBSND={play,say,get on(){return on}};
 
   /* ---- toggle in the OSD strip ---- */
@@ -1667,18 +1671,36 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
       if(re.length>=5&&re.every(e=>e.ok))say('perfect',.6)}}
   if(typeof toast==='function'){const orig=toast;toast=function(m){if(typeof m==='string'&&m.startsWith('Час вийшов'))play('timeout');return orig.apply(this,arguments)}}
 
-  /* timer ticks, last minute, game end, board movement */
-  let lastSec=null,lastMinFor=null,liveWas={},boardOrder='',boardTick=0;
+  /* soft click on every button and tab (answers have their own sounds) */
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button,a.btn');if(!b||b.disabled||b.closest('.opt')||b.matches('[data-a]'))return;play('click')},true);
+
+  /* commentator: what happens in the live game is heard on every screen */
+  let lastSec=null,k=0,seen=null,gemsSeen={},leaderSeen={},liveWas={},lastMinDone={},lastBlip=0;
   setInterval(()=>{
     if(!on||!ctx)return;
     if(G.state==='play'&&G.q&&!G.answered){const QT=qTimeOf(sc(),G.q.cl),rem=Math.ceil(QT-(Date.now()-G.qStart)/1000);
       if(rem!==lastSec&&rem<=10&&rem>0)play('tick',rem<=3);lastSec=rem}else lastSec=null;
-    const g=G.gid&&S.games[G.gid];
-    if(g&&isLive(g)&&G.state!=='idle'){const left=g.endsAt-vnow();if(left<=60000&&left>55000&&lastMinFor!==G.gid){lastMinFor=G.gid;say('lastmin')}}
-    const boardOn=!document.getElementById('tab-board')?.hidden;
-    seasonGames().forEach(x=>{const l=isLive(x);if(liveWas[x.id]&&!l&&(boardOn||x.id===G.gid)){play('fanfare');say(boardOn?'victory':'gameover',.9)}liveWas[x.id]=l});
-    if(boardOn&&++boardTick%8===0){const lg=seasonGames().find(isLive);if(lg){const o=compute([lg.id]).ts.filter(t=>t.s.n).map(t=>t.id).join(',');
-      if(boardOrder&&o!==boardOrder&&o.split(',')[0]!==boardOrder.split(',')[0])play('swoosh');boardOrder=o}}
+    if(++k%4)return;
+    let games=[];try{games=seasonGames()}catch(e){return}
+    games.forEach(g=>{const l=isLive(g);
+      if(liveWas[g.id]===undefined){liveWas[g.id]=l;if(l&&g.endsAt-vnow()<=60000)lastMinDone[g.id]=1;return}
+      if(!liveWas[g.id]&&l){play('whoosh');say(g.superfinal?'superfinal':'start',.3)}
+      if(liveWas[g.id]&&!l){play('fanfare');say(myAns.games?.[g.id]?.team&&!isOrg()?'gameover':'victory',.9)}
+      liveWas[g.id]=l;
+      if(l){const left=g.endsAt-vnow();if(left<=60000&&!lastMinDone[g.id]){lastMinDone[g.id]=1;if(left>45000)say('lastmin')}}});
+    const lg=games.find(isLive);if(!lg)return;
+    const mine=myAns.games?.[lg.id]?.team,fresh=[],cnt={};
+    Object.entries(S.answers).forEach(([uid,d])=>{const ev=d?.games?.[lg.id]?.ev;if(!ev)return;cnt[uid]=ev.length;
+      if(seen&&seen.gid===lg.id&&uid!==S.uid)for(let i=seen.c[uid]||0;i<ev.length;i++)fresh.push(ev[i])});
+    seen={gid:lg.id,c:cnt};
+    let R;try{R=compute([lg.id])}catch(e){return}
+    let gem=null;
+    R.ts.forEach(t=>{const key=lg.id+'|'+t.id,g=t.s.gems||{},now={d:g.d||0,r:g.r||0},p=gemsSeen[key];
+      if(p&&!lg.superfinal&&t.id!==mine){if(now.d>p.d)gem='diamond';else if(now.r>p.r&&!gem)gem='ruby'}gemsSeen[key]=now});
+    const leader=R.ts.find(t=>t.s.n)?.id,prev=leaderSeen[lg.id];if(leader)leaderSeen[lg.id]=leader;
+    if(gem){play('gem');say(gem,.3)}
+    else if(leader&&prev&&leader!==prev){play('swoosh');say('leader',.25)}
+    else if(fresh.length&&G.state!=='play'&&Date.now()-lastBlip>350){lastBlip=Date.now();play('blip',fresh[fresh.length-1].ok)}
   },250);
 })();
 </script>
