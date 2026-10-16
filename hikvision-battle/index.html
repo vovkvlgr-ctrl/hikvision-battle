@@ -239,6 +239,17 @@ input[type=text],input[type=email]{width:100%}
   --glow:rgba(5,144,218,.28); --on-accent:#fff;
   color-scheme:light;
 }
+:root[data-skin="hell"]{
+  --page:#0A0202;
+  --bg:rgba(28,6,4,.8); --panel:rgba(34,8,6,.66); --panel2:rgba(70,18,10,.55); --line:rgba(255,120,60,.2);
+  --fg:#FFEFE4; --mute:#C9A08F;
+  --accent:#FF6A1F; --accent-ink:#FFB070; --accent-soft:rgba(255,106,31,.13);
+  --rec:#FF2D55; --easy:#FFD23F; --med:#FF8A2A; --hard:#FF3B6B; --focus:#FFB070;
+  --glow:rgba(255,90,20,.5); --on-accent:#1A0400;
+  color-scheme:dark;
+}
+html:root[data-skin="hell"] .title h1 span{background-image:linear-gradient(90deg,#FFD23F,#FF6A1F,#FF2D55,#FFB070,#FFD23F)}
+:root[data-skin="hell"] .heat td.c{color:#1A0400}
 :root[data-skin]{--f-disp:"Unbounded","Inter",system-ui,sans-serif}
 :root[data-skin] body{background:var(--page)}
 #fx,#fx2{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}#fx2{z-index:20}
@@ -1468,15 +1479,17 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
   /* theme switch in the OSD strip */
   const osd=document.querySelector('.osd');
   if(osd){const b=document.createElement('button');b.className='skinbtn';b.type='button';
-    const lab=()=>b.textContent=root.dataset.skin==='night'?'Тема: полярна ніч':'Тема: крига';lab();
-    b.onclick=()=>{root.dataset.skin=root.dataset.skin==='night'?'ice':'night';try{localStorage.setItem('hb2_skin',root.dataset.skin)}catch(e){}lab();paintStatic=true};
+    const NAMES={night:'полярна ніч',ice:'крига',hell:'пекло'},ORDER=['night','ice','hell'];
+    if(!NAMES[root.dataset.skin])root.dataset.skin='night';
+    const lab=()=>{b.textContent='Тема: '+NAMES[root.dataset.skin];b.title='Змінити тему'};lab();
+    b.onclick=()=>{root.dataset.skin=ORDER[(ORDER.indexOf(root.dataset.skin)+1)%ORDER.length];try{localStorage.setItem('hb2_skin',root.dataset.skin)}catch(e){}lab();paintStatic=true};
     osd.appendChild(b)}
 
   const c=document.getElementById('fx'),x=c.getContext('2d'),c2=document.getElementById('fx2'),y=c2.getContext('2d');let had=false;
   const rm=matchMedia('(prefers-reduced-motion: reduce)');
-  let W=0,H=0,dpr=1,nodes=[],parts=[],paintStatic=true;
+  let W=0,H=0,dpr=1,nodes=[],parts=[],embers=[],paintStatic=true;
   function size(){dpr=Math.min(1.5,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;c.width=c2.width=W*dpr;c.height=c2.height=H*dpr;x.setTransform(dpr,0,0,dpr,0,0);y.setTransform(dpr,0,0,dpr,0,0);
-    const n=Math.round(Math.min(70,W*H/26000));nodes=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,p:Math.random()*6.28,blink:0}));paintStatic=true}
+    const ne=Math.round(Math.min(110,W*H/14000));embers=Array.from({length:ne},()=>newEmber(true));const n=Math.round(Math.min(70,W*H/26000));nodes=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,p:Math.random()*6.28,blink:0}));paintStatic=true}
   addEventListener('resize',size);size();
 
   const PAL={night:{bands:[[54,214,255],[140,110,255],[46,240,180]],node:'140,210,255',a:.30,line:.16,mode:'lighter'},
@@ -1502,6 +1515,27 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
       if(d<R2){x.strokeStyle=`rgba(${P.node},${(1-d/R2)*P.line})`;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}}}
     for(const n of nodes){const r=1.4+n.blink*2.6;x.fillStyle=`rgba(${P.node},${.45+n.blink*.55})`;x.beginPath();x.arc(n.x,n.y,r,0,6.283);x.fill();
       if(n.blink>.05){x.strokeStyle=`rgba(${P.node},${n.blink*.5})`;x.beginPath();x.arc(n.x,n.y,r+10*(1-n.blink)+4,0,6.283);x.stroke()}}}
+  /* hell: lava glow from below, licking flame tongues, embers rising and flickering */
+  function newEmber(any){return{x:Math.random()*W,y:any?Math.random()*H:H+10+Math.random()*40,vy:-(.25+Math.random()*.9),vx:(Math.random()-.5)*.3,s:.8+Math.random()*2.4,ph:Math.random()*6.28,hot:Math.random()}}
+  function hell(t,move){
+    const pulse=.75+.25*Math.sin(t*.0012)+.08*Math.sin(t*.0047);
+    const g=x.createRadialGradient(W/2,H*1.15,H*.1,W/2,H*1.15,H*1.05);
+    g.addColorStop(0,`rgba(255,120,20,${.55*pulse})`);g.addColorStop(.35,`rgba(220,40,10,${.32*pulse})`);g.addColorStop(.7,'rgba(90,0,10,.18)');g.addColorStop(1,'rgba(20,0,0,0)');
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+    x.globalCompositeOperation='lighter';
+    [[255,90,10,.22,.62],[255,40,20,.16,.72],[255,170,40,.14,.82]].forEach(([r,gg,b,a,lvl],k)=>{
+      const top=H*lvl,grad=x.createLinearGradient(0,top-160,0,H);
+      grad.addColorStop(0,`rgba(${r},${gg},${b},0)`);grad.addColorStop(.6,`rgba(${r},${gg},${b},${a})`);grad.addColorStop(1,`rgba(${r},${gg},${b},${a*1.6})`);
+      x.fillStyle=grad;x.beginPath();x.moveTo(0,H);
+      for(let i=0;i<=W+30;i+=30){const f=Math.sin(i*.012+t*.0021*(k+1))*38+Math.sin(i*.031-t*.0037)*22+Math.abs(Math.sin(i*.004+t*.0009+k))*-90;x.lineTo(i,top+f)}
+      x.lineTo(W,H);x.closePath();x.fill()});
+    for(const e of embers){
+      if(move){e.y+=e.vy;e.x+=e.vx+Math.sin(t*.002+e.ph)*.35;if(e.y<-10||e.x<-10||e.x>W+10)Object.assign(e,newEmber(false))}
+      const life=Math.max(0,Math.min(1,e.y/H)),fl=.55+.45*Math.sin(t*.012+e.ph*7);
+      const col=e.hot>.7?'255,220,120':e.hot>.35?'255,140,40':'255,70,30';
+      x.fillStyle=`rgba(${col},${(.25+.75*life)*fl})`;x.shadowColor=`rgb(${col})`;x.shadowBlur=8;
+      x.beginPath();x.arc(e.x,e.y,e.s*(.4+.6*life),0,6.283);x.fill()}
+    x.shadowBlur=0;x.globalCompositeOperation='source-over'}
   function sparks(dt){
     if(!parts.length&&!had)return;y.clearRect(0,0,W,H);had=parts.length>0;
     for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt;if(p.life<=0){parts.splice(i,1);continue}
@@ -1518,11 +1552,11 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
     if(still&&!paintStatic&&!parts.length)return;
     acc+=dt;if(!parts.length&&acc<33)return;acc=0;      /* ~30 fps unless sparks fly */
     const P=PAL[root.dataset.skin]||PAL.night;
-    sparks(dt);if(still&&!paintStatic)return;x.clearRect(0,0,W,H);aurora(still?0:t,P);net(P,!still);paintStatic=false}
+    sparks(dt);if(still&&!paintStatic)return;x.clearRect(0,0,W,H);if(root.dataset.skin==='hell')hell(still?0:t,!still);else{aurora(still?0:t,P);net(P,!still)}paintStatic=false}
   requestAnimationFrame(frame);
 
   window.HBFX={burst(px,py,ok){
-    const css=getComputedStyle(root),cols=ok?[css.getPropertyValue('--easy'),css.getPropertyValue('--accent'),'#E8FBFF',css.getPropertyValue('--hard')]:[css.getPropertyValue('--rec')];
+    const css=getComputedStyle(root),cols=ok?[css.getPropertyValue('--easy'),css.getPropertyValue('--accent'),root.dataset.skin==='hell'?'#FFF1C9':'#E8FBFF',css.getPropertyValue('--hard')]:[css.getPropertyValue('--rec')];
     const n=ok?46:14;
     for(let i=0;i<n;i++){const a=Math.random()*6.283,v=(ok?.25:.12)+Math.random()*(ok?.35:.12);
       parts.push({x:px,y:py,vx:Math.cos(a)*v,vy:Math.sin(a)*v-(ok?.18:0),r:Math.random()*3,vr:(Math.random()-.5)*.02,s:ok?4+Math.random()*6:3+Math.random()*3,c:cols[i%cols.length].trim(),k:ok&&i%3===0,life:700+Math.random()*700})}}};
