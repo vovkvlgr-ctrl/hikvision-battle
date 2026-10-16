@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
+<script>try{document.documentElement.dataset.skin=localStorage.getItem("hb2_skin")||"night"}catch(e){document.documentElement.dataset.skin="night"}</script>
 <style>body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="vendor/firebase-app-compat.js"></script>
 <script src="vendor/firebase-auth-compat.js"></script>
 <script src="vendor/firebase-firestore-compat.js"></script>
 <title>Hikvision Battle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Unbounded:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: camera-OSD header strip, tabbed console; game = question panel + live score rail */
 :root{
@@ -216,6 +217,87 @@ input[type=text],input[type=email]{width:100%}
 .okc{color:var(--easy)}.badc{color:var(--rec)}
 .win{border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:16px 18px;margin-bottom:18px}
 .win .wname{font:800 clamp(24px,4vw,40px)/1.15 var(--f-disp);color:var(--accent-ink);margin:6px 0}
+</style>
+<style id="skin">
+/* Skin "Полярне сяйво": cold vivid palette, glass panels over a live aurora + sensor-network canvas.
+   Two moods: night (default, deep arctic navy) and ice (light frost). */
+:root[data-skin="night"]{
+  --page:#040A15;
+  --bg:rgba(8,20,38,.78); --panel:rgba(11,25,46,.66); --panel2:rgba(28,50,84,.55); --line:rgba(125,180,240,.17);
+  --fg:#E7F2FF; --mute:#8FA8C8;
+  --accent:#36D6FF; --accent-ink:#8BE6FF; --accent-soft:rgba(54,214,255,.12);
+  --rec:#FF4F7E; --easy:#2EF0B4; --med:#8C9BFF; --hard:#C77DFF; --focus:#8BE6FF;
+  --glow:rgba(54,214,255,.45); --on-accent:#03121F;
+  color-scheme:dark;
+}
+:root[data-skin="ice"]{
+  --page:#E8F3FB;
+  --bg:rgba(255,255,255,.74); --panel:rgba(255,255,255,.7); --panel2:rgba(214,234,248,.78); --line:rgba(30,90,150,.16);
+  --fg:#0A2036; --mute:#4D6985;
+  --accent:#0590DA; --accent-ink:#065E96; --accent-soft:rgba(5,144,218,.1);
+  --rec:#E0245A; --easy:#0A9E7C; --med:#4A57E6; --hard:#9038DB; --focus:#065E96;
+  --glow:rgba(5,144,218,.28); --on-accent:#fff;
+  color-scheme:light;
+}
+:root[data-skin]{--f-disp:"Unbounded","Inter",system-ui,sans-serif}
+:root[data-skin] body{background:var(--page)}
+#fx,#fx2{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}#fx2{z-index:20}
+:root[data-skin] .wrap{position:relative;z-index:1}
+:root[data-skin] .toast{z-index:9;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 40px -12px var(--glow)}
+
+/* glass */
+:root[data-skin] .panel,:root[data-skin] .hcell{backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 50px -30px var(--glow);border-radius:16px}
+:root[data-skin] .hcell{position:relative;overflow:hidden}
+:root[data-skin] .hcell::after{content:"";position:absolute;inset:auto 0 0 0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.55}
+:root[data-skin] .demobar,:root[data-skin] .win,:root[data-skin] .modebar{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+
+/* type */
+:root[data-skin] .title h1{font-family:var(--f-disp);font-weight:800;letter-spacing:-.02em}
+:root[data-skin] .title h1 span{background:linear-gradient(90deg,var(--accent),#B9F4FF,var(--hard),var(--easy),var(--accent));background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:hbShimmer 9s linear infinite}
+@keyframes hbShimmer{to{background-position:300% 0}}
+:root[data-skin] .btitle,:root[data-skin] .win .wname,:root[data-skin] .tl .num{font-family:var(--f-disp)}
+:root[data-skin] .big,:root[data-skin] .timer,:root[data-skin] .bclock{text-shadow:0 0 22px var(--glow)}
+:root[data-skin] .kpi b{text-shadow:0 0 16px var(--glow)}
+
+/* controls */
+:root[data-skin] .btn{transition:border-color .2s,box-shadow .2s,transform .15s}
+:root[data-skin] .btn:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 18px -4px var(--glow)}
+:root[data-skin] .btn.pri{background:linear-gradient(120deg,var(--accent),color-mix(in srgb,var(--hard) 70%,var(--accent)));border-color:transparent;color:var(--on-accent);font-weight:600}
+:root[data-skin] .btn.pri:hover{transform:translateY(-1px)}
+:root[data-skin] nav.tabs button[aria-selected="true"]{border-image:linear-gradient(90deg,var(--accent),var(--hard)) 1;color:var(--accent-ink);text-shadow:0 0 14px var(--glow)}
+:root[data-skin] .clb{transition:box-shadow .2s,border-color .2s,transform .15s}
+:root[data-skin] .clb:hover{transform:translateY(-2px)}
+:root[data-skin] .clb[aria-pressed="true"].e{box-shadow:0 0 24px -6px var(--easy)}
+:root[data-skin] .clb[aria-pressed="true"].m{box-shadow:0 0 24px -6px var(--med)}
+:root[data-skin] .clb[aria-pressed="true"].h{box-shadow:0 0 24px -6px var(--hard)}
+:root[data-skin] .opt{transition:border-color .15s,box-shadow .15s,transform .15s}
+:root[data-skin] .opt:hover:not(:disabled){border-color:var(--accent);box-shadow:0 0 20px -6px var(--glow);transform:translateY(-1px)}
+:root[data-skin] .opt.right{box-shadow:0 0 28px -4px var(--easy);animation:hbPop .45s ease-out}
+:root[data-skin] .opt.wrong{box-shadow:0 0 24px -6px var(--rec);animation:hbShake .4s ease-in-out}
+@keyframes hbPop{40%{transform:scale(1.03)}}
+@keyframes hbShake{20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+
+/* bars come alive */
+:root[data-skin] .bar{height:8px;background:var(--panel2)}
+:root[data-skin] .bar i{background:linear-gradient(90deg,var(--easy),var(--accent),var(--hard));background-size:200% 100%;animation:hbFlow 3s linear infinite;box-shadow:0 0 14px var(--glow)}
+@keyframes hbFlow{to{background-position:200% 0}}
+:root[data-skin] .tbar i,:root[data-skin] .hbar i,:root[data-skin] .brow .bb i{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 70%,transparent),var(--accent))}
+:root[data-skin] .brow.first .bb i{background:linear-gradient(90deg,var(--accent),var(--hard));box-shadow:0 0 16px var(--glow)}
+:root[data-skin] .brow.first .rk,:root[data-skin] tr:nth-child(1) .pl{color:var(--accent);text-shadow:0 0 12px var(--glow)}
+:root[data-skin] .brow.first .nm{text-shadow:0 0 14px var(--glow)}
+:root[data-skin] .dot{background:var(--rec);box-shadow:0 0 12px var(--rec)}
+:root[data-skin] .chip.live{background:var(--rec);border-color:var(--rec);color:#fff;box-shadow:0 0 14px -2px var(--rec)}
+:root[data-skin="night"] .heat td.c{color:#0A2036}
+:root[data-skin] .at.me,:root[data-skin] tr.me td{background:var(--accent-soft)}
+:root[data-skin] .fd.new{animation:hbFlash 1.4s ease-out}
+@keyframes hbFlash{from{background:color-mix(in srgb,var(--accent) 26%,transparent)}to{background:transparent}}
+.skinbtn{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font:500 11px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);cursor:pointer}
+.skinbtn:hover{color:var(--fg);border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){
+  :root[data-skin] .title h1 span,:root[data-skin] .bar i,:root[data-skin] .opt.right,:root[data-skin] .opt.wrong{animation:none}
+}
 </style>
 <div class="wrap">
   <div class="osd">
@@ -1374,5 +1456,81 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
       started=true;await initDb(db,fu);
     });
   }catch(e){console.warn(e);initLocal()}
+})();
+</script>
+<canvas id="fx" aria-hidden="true"></canvas><canvas id="fx2" aria-hidden="true"></canvas>
+<script>
+/* ===== live background: aurora ribbons + drifting sensor network + answer bursts ===== */
+(function(){
+  const root=document.documentElement;
+  let skin='night';try{skin=localStorage.getItem('hb2_skin')||'night'}catch(e){}
+  root.dataset.skin=skin;
+  /* theme switch in the OSD strip */
+  const osd=document.querySelector('.osd');
+  if(osd){const b=document.createElement('button');b.className='skinbtn';b.type='button';
+    const lab=()=>b.textContent=root.dataset.skin==='night'?'Тема: полярна ніч':'Тема: крига';lab();
+    b.onclick=()=>{root.dataset.skin=root.dataset.skin==='night'?'ice':'night';try{localStorage.setItem('hb2_skin',root.dataset.skin)}catch(e){}lab();paintStatic=true};
+    osd.appendChild(b)}
+
+  const c=document.getElementById('fx'),x=c.getContext('2d'),c2=document.getElementById('fx2'),y=c2.getContext('2d');let had=false;
+  const rm=matchMedia('(prefers-reduced-motion: reduce)');
+  let W=0,H=0,dpr=1,nodes=[],parts=[],paintStatic=true;
+  function size(){dpr=Math.min(1.5,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;c.width=c2.width=W*dpr;c.height=c2.height=H*dpr;x.setTransform(dpr,0,0,dpr,0,0);y.setTransform(dpr,0,0,dpr,0,0);
+    const n=Math.round(Math.min(70,W*H/26000));nodes=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.18,vy:(Math.random()-.5)*.18,p:Math.random()*6.28,blink:0}));paintStatic=true}
+  addEventListener('resize',size);size();
+
+  const PAL={night:{bands:[[54,214,255],[140,110,255],[46,240,180]],node:'140,210,255',a:.30,line:.16,mode:'lighter'},
+             ice:{bands:[[5,144,218],[120,90,240],[10,170,140]],node:'20,110,180',a:.13,line:.12,mode:'source-over'}};
+  function aurora(t,P){
+    x.globalCompositeOperation=P.mode;
+    P.bands.forEach((col,k)=>{
+      const base=H*(.18+k*.16),amp=40+k*18,th=170+k*40;
+      const g=x.createLinearGradient(0,base-th,0,base+th);
+      g.addColorStop(0,`rgba(${col},0)`);g.addColorStop(.5,`rgba(${col},${P.a})`);g.addColorStop(1,`rgba(${col},0)`);
+      x.fillStyle=g;x.beginPath();
+      for(let i=0;i<=W+40;i+=40){const y=base+Math.sin(i*.0035+t*.00022*(k+1))*amp+Math.sin(i*.0011-t*.00013*(k+2))*amp*.8;
+        i?x.lineTo(i,y-th):x.moveTo(i,y-th)}
+      for(let i=W+40;i>=0;i-=40){const y=base+Math.sin(i*.0035+t*.00022*(k+1)+.9)*amp*.9+Math.sin(i*.0011-t*.00013*(k+2))*amp*.8;x.lineTo(i,y+th)}
+      x.closePath();x.fill()});
+    x.globalCompositeOperation='source-over'}
+  function net(P,move){
+    const R=150,R2=R*R;
+    for(const n of nodes){if(move){n.x+=n.vx;n.y+=n.vy;if(n.x<-20)n.x=W+20;if(n.x>W+20)n.x=-20;if(n.y<-20)n.y=H+20;if(n.y>H+20)n.y=-20;
+      if(n.blink>0)n.blink-=.02;else if(Math.random()<.0015)n.blink=1}}
+    x.lineWidth=1;
+    for(let i=0;i<nodes.length;i++){const a=nodes[i];for(let j=i+1;j<nodes.length;j++){const b=nodes[j],dx=a.x-b.x,dy=a.y-b.y,d=dx*dx+dy*dy;
+      if(d<R2){x.strokeStyle=`rgba(${P.node},${(1-d/R2)*P.line})`;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}}}
+    for(const n of nodes){const r=1.4+n.blink*2.6;x.fillStyle=`rgba(${P.node},${.45+n.blink*.55})`;x.beginPath();x.arc(n.x,n.y,r,0,6.283);x.fill();
+      if(n.blink>.05){x.strokeStyle=`rgba(${P.node},${n.blink*.5})`;x.beginPath();x.arc(n.x,n.y,r+10*(1-n.blink)+4,0,6.283);x.stroke()}}}
+  function sparks(dt){
+    if(!parts.length&&!had)return;y.clearRect(0,0,W,H);had=parts.length>0;
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life-=dt;if(p.life<=0){parts.splice(i,1);continue}
+      p.vy+=.00045*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;const a=Math.min(1,p.life/400);
+      y.save();y.translate(p.x,p.y);y.rotate(p.r);y.globalAlpha=a;y.fillStyle=p.c;y.shadowColor=p.c;y.shadowBlur=12;
+      if(p.k){y.beginPath();y.moveTo(0,-p.s);y.lineTo(p.s*.7,0);y.lineTo(0,p.s);y.lineTo(-p.s*.7,0);y.closePath();y.fill()}else y.fillRect(-p.s/2,-p.s/6,p.s,p.s/3);
+      y.restore()}}
+  let last=0,acc=0;
+  function frame(t){
+    requestAnimationFrame(frame);
+    if(document.hidden)return;
+    const dt=Math.min(60,t-(last||t));last=t;
+    const still=rm.matches;
+    if(still&&!paintStatic&&!parts.length)return;
+    acc+=dt;if(!parts.length&&acc<33)return;acc=0;      /* ~30 fps unless sparks fly */
+    const P=PAL[root.dataset.skin]||PAL.night;
+    sparks(dt);if(still&&!paintStatic)return;x.clearRect(0,0,W,H);aurora(still?0:t,P);net(P,!still);paintStatic=false}
+  requestAnimationFrame(frame);
+
+  window.HBFX={burst(px,py,ok){
+    const css=getComputedStyle(root),cols=ok?[css.getPropertyValue('--easy'),css.getPropertyValue('--accent'),'#E8FBFF',css.getPropertyValue('--hard')]:[css.getPropertyValue('--rec')];
+    const n=ok?46:14;
+    for(let i=0;i<n;i++){const a=Math.random()*6.283,v=(ok?.25:.12)+Math.random()*(ok?.35:.12);
+      parts.push({x:px,y:py,vx:Math.cos(a)*v,vy:Math.sin(a)*v-(ok?.18:0),r:Math.random()*3,vr:(Math.random()-.5)*.02,s:ok?4+Math.random()*6:3+Math.random()*3,c:cols[i%cols.length].trim(),k:ok&&i%3===0,life:700+Math.random()*700})}}};
+
+  /* hook the game: celebrate a right answer where it was given */
+  if(typeof answer==='function'){const orig=answer;
+    answer=function(i){const was=G.answered;orig(i);if(was||!G.fb)return;
+      const el=document.querySelector('#tab-game .opt.'+(G.fb.ok?'right':'wrong'));
+      if(el&&!rm.matches){const r=el.getBoundingClientRect();HBFX.burst(r.left+r.width/2,r.top+r.height/2,G.fb.ok)}}}
 })();
 </script>
