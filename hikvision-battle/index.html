@@ -784,7 +784,7 @@ function renderRules(){
 let adminSub='season',draft=null,draftSid=null,qFilter='',qEdit=null;
 function renderAdmin(){
   const el=$('#tab-admin');if(!S.isOwner){el.innerHTML='';return}
-  if(adminSub==='season'&&draft&&$('#sName')){syncDraft();draft.name=$('#sName').value;draft.link=$('#sLink').value}
+  if(adminSub==='season'&&draft&&$('#sName')&&!skipSync){syncDraft();draft.name=$('#sName').value;draft.link=$('#sLink').value}skipSync=false;
   const subs=[['season','Сезон'],['games','Ігри'],['questions','Питання'],['scoring','Бали'],['prize','Призи']];
   let body='';
   try{body=({season:adminSeason,games:adminGames,questions:adminQuestions,scoring:adminScoring,prize:adminPrize})[adminSub]()}catch(e){body='<div class="empty">Помилка відображення.</div>';console.error(e)}
@@ -819,8 +819,9 @@ function adminSeason(){
     <div class="ed">${draft.teams.map((t,i)=>`<div class="trow"><input type="text" data-t="${i}" data-f="name" value="${esc(t.name)}" aria-label="Назва команди"><input type="text" data-t="${i}" data-f="reg" value="${esc(t.reg)}" placeholder="регіон" aria-label="Регіон"><input type="email" data-t="${i}" data-f="email" value="${esc(t.email||'')}" placeholder="пошта капітана" aria-label="Пошта капітана"><button class="btn sm del" data-delt="${i}" aria-label="Видалити команду">✕</button></div>${(()=>{const tb=teamsMap()[t.id];return tb&&(tb.name!==tb.official||brandMap()[t.id])?`<div class="row note" style="gap:8px;margin:-2px 0 6px">${emblem(tb.em,20)} Команда обрала: «${esc(tb.name)}» <button class="btn sm" data-rbrand="${i}">Скинути назву й емблему</button></div>`:''})()}`).join('')}</div>
     <button class="btn sm" id="addTeam">+ Додати команду</button></div>`;
 }
-function syncDraft(){$$('#tab-admin [data-b]').forEach(x=>{const b=draft.blocks[+x.dataset.b];b[x.dataset.f]=x.type==='checkbox'?x.checked:x.value});
-  $$('#tab-admin [data-t]').forEach(x=>{draft.teams[+x.dataset.t][x.dataset.f]=x.value})}
+function syncDraft(){$$('#tab-admin [data-b]').forEach(x=>{const b=draft.blocks[+x.dataset.b];if(!b)return;b[x.dataset.f]=x.type==='checkbox'?x.checked:x.value});
+  $$('#tab-admin [data-t]').forEach(x=>{const t=draft.teams[+x.dataset.t];if(t)t[x.dataset.f]=x.value})}
+let skipSync=false;
 function bindSeason(){
   const a=$('#actSeason');if(a)a.onchange=()=>{write('cfg/main',Object.assign({},S.cfg,{activeSeason:a.value}));draft=null};
   $('#newSeason').onclick=()=>{const name=$('#newSeasonName').value.trim();if(!name){toast('Вкажіть назву сезону.');return}
@@ -830,8 +831,8 @@ function bindSeason(){
   if(!draft)return;
   $('#addBlock').onclick=()=>{syncDraft();draft.blocks.push({id:nid('b'),key:'block'+(draft.blocks.length+1),name:'Новий блок',desc:'',training:'',game:''});renderAdmin()};
   $('#addTeam').onclick=()=>{syncDraft();draft.teams.push({id:nid('t'),name:'Команда '+(draft.teams.length+1),reg:''});renderAdmin()};
-  $$('[data-delb]').forEach(b=>b.onclick=()=>{syncDraft();draft.blocks.splice(+b.dataset.delb,1);renderAdmin()});
-  $$('[data-delt]').forEach(b=>b.onclick=()=>{syncDraft();draft.teams.splice(+b.dataset.delt,1);renderAdmin()});
+  $$('[data-delb]').forEach(b=>b.onclick=()=>{syncDraft();draft.blocks.splice(+b.dataset.delb,1);skipSync=true;renderAdmin()});
+  $$('[data-delt]').forEach(b=>b.onclick=()=>{syncDraft();draft.teams.splice(+b.dataset.delt,1);skipSync=true;renderAdmin()});
   $$('[data-rbrand]').forEach(b=>b.onclick=()=>{syncDraft();draft.teams[+b.dataset.rbrand].brandReset=vnow();write('seasons/'+S.cfg.activeSeason,clone(draft)).then(ok=>ok!==false&&toast('Назву й емблему скинуто.'))});
   $('#saveSeason').onclick=()=>{syncDraft();draft.name=$('#sName').value.trim()||draft.name;draft.link=$('#sLink').value.trim();
     draft.blocks.forEach(b=>b.key=(b.key||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'')||nid('k'));
