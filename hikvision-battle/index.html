@@ -304,6 +304,7 @@ html:root[data-skin="hell"] .title h1 span{background-image:linear-gradient(90de
 :root[data-skin] .at.me,:root[data-skin] tr.me td{background:var(--accent-soft)}
 :root[data-skin] .fd.new{animation:hbFlash 1.4s ease-out}
 @keyframes hbFlash{from{background:color-mix(in srgb,var(--accent) 26%,transparent)}to{background:transparent}}
+.osdctl{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .skinbtn{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font:500 11px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);cursor:pointer}
 .skinbtn:hover{color:var(--fg);border-color:var(--accent)}
 @media (prefers-reduced-motion:reduce){
@@ -1483,7 +1484,7 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
     if(!NAMES[root.dataset.skin])root.dataset.skin='night';
     const lab=()=>{b.textContent='Тема: '+NAMES[root.dataset.skin];b.title='Змінити тему'};lab();
     b.onclick=()=>{root.dataset.skin=ORDER[(ORDER.indexOf(root.dataset.skin)+1)%ORDER.length];try{localStorage.setItem('hb2_skin',root.dataset.skin)}catch(e){}lab();paintStatic=true};
-    osd.appendChild(b)}
+    const box=document.createElement('div');box.className='osdctl';box.appendChild(b);osd.appendChild(box)}
 
   const c=document.getElementById('fx'),x=c.getContext('2d'),c2=document.getElementById('fx2'),y=c2.getContext('2d');let had=false;
   const rm=matchMedia('(prefers-reduced-motion: reduce)');
@@ -1638,18 +1639,59 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
   async function say(k,delay=0){
     if(!ready()||!VOICE[k])return;const now=ctx.currentTime;if(now<speaking)return;if(COOL[k]&&said[k]&&now-said[k]<COOL[k])return;said[k]=now;   /* never talk over itself */
     window.__sndLog&&__sndLog.push('say:'+k);const b=await load(k);
-    if(b){const s=ctx.createBufferSource(),g=ctx.createGain();g.gain.value=1.15;s.buffer=b;s.connect(g);g.connect(master);const t=ctx.currentTime+delay;s.start(t);speaking=t+b.duration;return}
+    if(b){const s=ctx.createBufferSource(),g=ctx.createGain();g.gain.value=1.15;s.buffer=b;s.connect(g);g.connect(master);const t=ctx.currentTime+delay;s.start(t);speaking=t+b.duration;duck(delay+b.duration);return}
     if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(VOICE[k]);u.lang='uk-UA';u.pitch=.6;u.rate=.92;u.volume=.9;
       const v=speechSynthesis.getVoices().find(v=>/^uk/i.test(v.lang));if(v)u.voice=v;speaking=ctx.currentTime+1.6;setTimeout(()=>speechSynthesis.speak(u),delay*1000)}}
   const play=(k,...a)=>{if(ready())try{SFX[k](...a);window.__sndLog&&__sndLog.push(k)}catch(e){}};
   window.HBSND={play,say,get on(){return on}};
 
+  /* ---- background music: generative loop, plays only while a game is live ---- */
+  let musicOn=true;try{musicOn=localStorage.getItem('hb2_mus')!=='off'}catch(e){}
+  const M={bus:null,run:false,step:0,next:0,timer:null,hot:false,delay:null};
+  function mInit(){if(M.bus)return;M.bus=ctx.createGain();M.bus.gain.value=0;M.bus.connect(master);
+    M.delay=ctx.createDelay(1);const fb=ctx.createGain(),wet=ctx.createGain();fb.gain.value=.32;wet.gain.value=.25;
+    M.delay.connect(fb);fb.connect(M.delay);M.delay.connect(wet);wet.connect(M.bus)}
+  const LVL=.6;
+  function duck(sec){if(!M.bus)return;const t=ctx.currentTime,g=M.bus.gain;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(M.run?LVL*.3:0,t+.08);g.setValueAtTime(M.run?LVL*.3:0,t+sec);g.linearRampToValueAtTime(M.run?LVL:0,t+sec+.6)}
+  function mv(midi,t,dur,vol,type,cut,echo){const o=ctx.createOscillator(),f=ctx.createBiquadFilter(),g=ctx.createGain();o.type=type;o.frequency.value=hz(midi);
+    f.type='lowpass';f.frequency.setValueAtTime(cut,t);f.frequency.exponentialRampToValueAtTime(Math.max(120,cut*.25),t+dur);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.006);g.gain.exponentialRampToValueAtTime(.0006,t+dur);
+    o.connect(f);f.connect(g);g.connect(M.bus);if(echo)g.connect(M.delay);o.start(t);o.stop(t+dur+.03)}
+  function kick(t,v){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.setValueAtTime(hellish()?140:120,t);o.frequency.exponentialRampToValueAtTime(42,t+.16);
+    g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+.32);o.connect(g);g.connect(M.bus);o.start(t);o.stop(t+.34)}
+  let NB=null;function hat(t,v,len=.035){if(!NB){NB=ctx.createBuffer(1,ctx.sampleRate*.3,ctx.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+    const n=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();n.buffer=NB;f.type='highpass';f.frequency.value=hellish()?5200:7600;
+    g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+len);n.connect(f);f.connect(g);g.connect(M.bus);n.start(t);n.stop(t+len+.01)}
+  /* cold: A minor synth-pulse  ·  hell: D phrygian drive */
+  const SONG={cold:{bpm:112,ch:[[57,60,64],[53,57,60],[60,64,67],[55,59,62]],bass:[33,29,36,31]},
+              hell:{bpm:124,ch:[[50,53,57],[51,55,58],[48,51,55],[50,53,58]],bass:[26,27,24,26]}};
+  function mStep(t,i){
+    const H=hellish(),S0=H?SONG.hell:SONG.cold,bar=Math.floor(i/16)%4,s=i%16,ch=S0.ch[bar],root=S0.bass[bar];
+    if(H){ if(s%4===0)kick(t,.5); if(s%2===1)hat(t,.07); if(M.hot&&s%2===0)hat(t,.04);
+      if(s%2===0||M.hot)mv(root+(s%8===6?12:0),t,.16,.13,'sawtooth',900,false);
+      if(s===0||s===6||s===10)ch.forEach(n=>mv(n,t,.24,.045,'square',2400,true));
+      if(s===14&&bar===3)[0,1,2].forEach(k=>kick(t+k*.05,.25)) }
+    else{ if(s===0||s===8||(M.hot&&s===12))kick(t,.42); if(s%4===2)hat(t,.06,.05); if(M.hot&&s%2===1)hat(t,.03);
+      if(s%2===0)mv(root+(s%4===2?12:0),t,.2,.11,'triangle',700,false);
+      const arp=[0,1,2,1,2,0,1,2];mv(ch[arp[s%8]]+12+(s>=8&&M.hot?12:0),t,.18,.045,'triangle',4200,true);
+      if(s===0)ch.forEach(n=>mv(n,t,2.2,.022,'sawtooth',1500,false)) }}
+  function mSched(){if(!M.run)return;const bpm=(hellish()?SONG.hell:SONG.cold).bpm+(M.hot?8:0),sp=60/bpm/4,ahead=document.hidden?1.5:.25;
+    while(M.next<ctx.currentTime+ahead){mStep(M.next,M.step);M.next+=sp;M.step++}}
+  function musicStart(){if(M.run||!ready())return;mInit();M.run=true;M.step=0;M.next=ctx.currentTime+.1;M.delay.delayTime.value=60/(hellish()?124:112)*.75;
+    const g=M.bus.gain,t=ctx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(0,t);g.linearRampToValueAtTime(LVL,t+2.5);M.timer=setInterval(mSched,50);mSched()}
+  function musicStop(){if(!M.run)return;M.run=false;clearInterval(M.timer);const g=M.bus.gain,t=ctx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(0,t+1.5)}
+  window.HBSND.music={start:musicStart,stop:musicStop,get run(){return M.run},_s:mSched,set hot(v){M.hot=v}};
+
   /* ---- toggle in the OSD strip ---- */
-  const osd=document.querySelector('.osd');
+  const osd=document.querySelector('.osdctl')||document.querySelector('.osd');
   if(osd){const b=document.createElement('button');b.className='skinbtn';b.type='button';
     const lab=()=>{b.textContent=on?'Звук: увімк.':'Звук: вимк.';b.setAttribute('aria-pressed',on)};lab();
     b.onclick=()=>{on=!on;try{localStorage.setItem('hb2_snd',on?'on':'off')}catch(e){}lab();if(on){unlock();setTimeout(()=>play('round'),60)}};
-    osd.appendChild(b)}
+    osd.appendChild(b);
+    const mb=document.createElement('button');mb.className='skinbtn';mb.type='button';
+    const mlab=()=>{mb.textContent=musicOn?'Музика: увімк.':'Музика: вимк.';mb.setAttribute('aria-pressed',musicOn)};mlab();
+    mb.onclick=()=>{musicOn=!musicOn;try{localStorage.setItem('hb2_mus',musicOn?'on':'off')}catch(e){}mlab();if(!musicOn)musicStop();else unlock()};
+    osd.appendChild(mb)}
 
   /* ---- game hooks ---- */
   const evs=()=>(myAns.games?.[G.gid]?.ev)||[];
@@ -1677,7 +1719,7 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
   /* commentator: what happens in the live game is heard on every screen */
   let lastSec=null,k=0,seen=null,gemsSeen={},leaderSeen={},liveWas={},lastMinDone={},lastBlip=0;
   setInterval(()=>{
-    if(!on||!ctx)return;
+    if(!on||!ctx){if(M.run)musicStop();return}
     if(G.state==='play'&&G.q&&!G.answered){const QT=qTimeOf(sc(),G.q.cl),rem=Math.ceil(QT-(Date.now()-G.qStart)/1000);
       if(rem!==lastSec&&rem<=10&&rem>0)play('tick',rem<=3);lastSec=rem}else lastSec=null;
     if(++k%4)return;
@@ -1688,7 +1730,9 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
       if(liveWas[g.id]&&!l){play('fanfare');say(myAns.games?.[g.id]?.team&&!isOrg()?'gameover':'victory',.9)}
       liveWas[g.id]=l;
       if(l){const left=g.endsAt-vnow();if(left<=60000&&!lastMinDone[g.id]){lastMinDone[g.id]=1;if(left>45000)say('lastmin')}}});
-    const lg=games.find(isLive);if(!lg)return;
+    const lg=games.find(isLive);
+    if(musicOn&&lg){M.hot=lg.endsAt-vnow()<=60000;musicStart()}else musicStop();
+    if(!lg)return;
     const mine=myAns.games?.[lg.id]?.team,fresh=[],cnt={};
     Object.entries(S.answers).forEach(([uid,d])=>{const ev=d?.games?.[lg.id]?.ev;if(!ev)return;cnt[uid]=ev.length;
       if(seen&&seen.gid===lg.id&&uid!==S.uid)for(let i=seen.c[uid]||0;i<ev.length;i++)fresh.push(ev[i])});
