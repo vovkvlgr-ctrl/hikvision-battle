@@ -323,7 +323,7 @@ html:root[data-skin="hell"] .title h1 span{background-image:linear-gradient(90de
       <h1>Hikvision <span>Battle</span></h1>
       <p>Щорічне змагання сейлс-команд. Гравець сам обирає складність і ризик, а кожна відповідь іде в бали гравця, команди й регіону.</p>
     </div>
-    <div class="grid" style="gap:12px;justify-items:end"><div class="kpis" id="topKpis"></div><div class="row" style="gap:8px;justify-content:flex-end"><button class="btn" id="viewBtn" hidden>Вигляд команди</button><button class="btn" id="demoBtn">▶ Демо-симуляція</button><button class="btn" id="authBtn" hidden>Вхід організатора</button></div></div>
+    <div class="grid" style="gap:12px;justify-items:end"><div class="kpis" id="topKpis"></div><div class="row" style="gap:8px;justify-content:flex-end"><button class="btn" id="viewBtn" hidden>Вигляд команди</button><button class="btn" id="demoBtn">▶ Демо-симуляція</button><span id="whoBox" class="whobox" hidden></span><button class="btn" id="authBtn" hidden>Вхід організатора</button></div></div>
   </div>
 
   <nav class="tabs" role="tablist" id="tabs">
@@ -525,7 +525,7 @@ function claimOwners(gid){const g=S.games[gid],reset=(g&&g.resetClaims)||{},best
 function inSlot(g,e){return g&&g.startedAt&&e.at>=g.startedAt-5000&&e.at<=(g.endsAt||Infinity)+5000}
 
 /* ================= scoring ================= */
-function evPts(e,C){const P=C.pts[e.cl]||{ok:0,bad:0},base=e.ok?P.ok:P.bad;
+function evPts(e,C){const P=C.pts[e.cl]||{ok:0,bad:0},base=e.ok?P.ok:(e.to?0:P.bad);
   const speed=(e.ok&&C.speedOn)?Math.round(P.ok*C.speedPct/100*Math.max(0,(qTimeOf(C,e.cl)-e.t)/qTimeOf(C,e.cl))):0;return{base,speed}}
 function scoreEvents(evs,C){
   const s={n:evs.length,ok:0,base:0,speed:0,cnt:{e:0,m:0,h:0},okc:{e:0,m:0,h:0},time:0,bAll:0,bHard:0};
@@ -536,7 +536,7 @@ function scoreEvents(evs,C){
   s.hardShare=s.n?s.cnt.h/s.n:0;
   if(s.cnt.e&&s.cnt.m&&s.cnt.h)s.bAll=C.bAll;
   s.hardAcc=s.cnt.h?s.okc.h/s.cnt.h:0;
-  if(s.cnt.h>=C.hardMin&&s.hardAcc*100>C.hardShare)s.bHard=C.bHard;
+  if(s.cnt.h>=C.hardMin&&s.hardAcc*100>=C.hardShare-1e-9)s.bHard=C.bHard;
   s.total=s.base+s.speed+s.bAll+s.bHard;return s;
 }
 function addS(a,b){if(!a)return clone(b);a.gems=a.gems||{r:0,d:0};a.gems.r+=b.gems?.r||0;a.gems.d+=b.gems?.d||0;['n','ok','base','speed','time','bAll','bHard','total'].forEach(k=>a[k]+=b[k]);['e','m','h'].forEach(k=>{a.cnt[k]+=b.cnt[k];a.okc[k]+=b.okc[k]});return a}
@@ -649,6 +649,12 @@ function answer(i){if(G.answered||G.state!=='play'||!G.q)return;if(!isLive(S.gam
   const lim=gameLimit(S.games[G.gid]),perR=S.games[G.gid]?.superfinal?lim:sc().qPerRound;
   setTimeout(()=>{if(G.state==='play'){if(Date.now()>=G.roundEnd||mg.ev.length>=lim||G.roundEv.length>=perR)endRound();else{nextQ();renderGame()}}},ok?1100:2200);
 }
+/* time ran out: the question counts as used, 0 points, the streak breaks */
+function timeoutQ(QT){const q=G.q,mg=myAns.games?.[G.gid];if(!q||!mg||G.answered)return;G.answered=true;
+  const ev={cl:q.cl,ok:false,to:1,t:QT,q:q.id,topic:q.topic||'Інше',at:vnow()};mg.ev=mg.ev||[];mg.ev.push(ev);G.roundEv.push(ev);
+  G.fb={ok:false,to:true,i:-1,p:{base:0,speed:0},t:QT};saveMine();renderGame();toast('Час вийшов — питання зараховано без балів');
+  const lim=gameLimit(S.games[G.gid]),perR=S.games[G.gid]?.superfinal?lim:sc().qPerRound;
+  setTimeout(()=>{if(G.state==='play'){if(Date.now()>=G.roundEnd||mg.ev.length>=lim||G.roundEv.length>=perR)endRound();else{nextQ();renderGame()}}},2200)}
 let saveTimer=null;
 function saveMine(){if(S.readonly)return;myDirty=true;clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{const data=clone(myAns);await write('answers/'+S.uid,data);myDirty=false},600)}
@@ -656,7 +662,7 @@ function endRound(){G.state='done';renderGame()}
 function gameTick(){if(!isLive(S.games[G.gid])&&!G.answered){endRound();return}const left=G.roundEnd-Date.now();if(left<=0&&!G.answered){endRound();return}
   const QT=G.q?qTimeOf(sc(),G.q.cl):0,e2=(Date.now()-G.qStart)/1000;
   const el=$('#rTimer');if(el&&!G.answered)el.textContent=mmss(Math.max(0,QT-e2));
-  if(G.q&&!G.answered&&e2>=QT){nextQ();renderGame();toast('Час вийшов — наступне питання');return}
+  if(G.q&&!G.answered&&e2>=QT){timeoutQ(QT);return}
   const qb=$('#qBar');if(qb&&!G.answered){qb.style.width=Math.max(0,100-e2/QT*100)+'%';const qt=$('#qT');if(qt)qt.textContent=`${Math.ceil(Math.max(0,QT-e2))} с з ${QT}`}}
 setInterval(tick,250);
 
@@ -717,7 +723,7 @@ function renderGame(){
       <div class="row sp"><h2>${esc(g.title)}</h2><span class="chip live">Наживо до ${hhmm(g.endsAt)}</span></div>
       <div class="big" style="font-size:28px">${esc(teamsMap()[me.team]?.name||'')}</div>
       <div><div class="label" style="margin-bottom:8px">Стартовий кластер · можна перемикати під час гри</div>${clBtns}</div>
-      <p class="note">Гра — <b>${C.qPerGame} питань</b>, ${C.quota.e} EASY, ${C.quota.m} MEDIUM і ${C.quota.h} HARD, порядок обираєте самі: ${Math.ceil(C.qPerGame/C.qPerRound)} раундів по ${C.qPerRound}. Максимум — <b>${fmt(maxGame(C))} балів</b>. Час на питання: <b>EASY ${fmtT(C.qTimeE)}, MEDIUM ${fmtT(C.qTimeM)}, HARD ${fmtT(C.qTimeH)}</b>; якщо не встигли, питання пропускається без штрафу. Помилки в MEDIUM і HARD знімають бали.</p>
+      <p class="note">Гра — <b>${C.qPerGame} питань</b>, ${C.quota.e} EASY, ${C.quota.m} MEDIUM і ${C.quota.h} HARD, порядок обираєте самі: ${Math.ceil(C.qPerGame/C.qPerRound)} раундів по ${C.qPerRound}. Максимум — <b>${fmt(maxGame(C))} балів</b>. Час на питання: <b>EASY ${fmtT(C.qTimeE)}, MEDIUM ${fmtT(C.qTimeM)}, HARD ${fmtT(C.qTimeH)}</b>; якщо не встигли, питання зараховується без балів (0) і обриває серію. Помилки в MEDIUM і HARD знімають бали.</p>
       ${pool.length?'':`<div class="warnbox">Для цього блоку ще немає питань.</div>`}
       <button class="btn pri" id="go" ${pool.length?'':'disabled'} style="width:100%;padding:16px;font-size:18px;font-weight:700">▶ Почати раунд — з’являться питання</button>
     </div>`;
@@ -731,7 +737,7 @@ function renderGame(){
       ${q.model?`<div class="model">${esc(q.model)}</div>`:''}
       <div class="q">${esc(q.q)}</div>
       <div class="opts">${q.order.map(i=>{let c='';if(fb){if(i===q.a)c='right';else if(i===fb.i)c='wrong'}return`<button class="opt ${c}" data-a="${i}" ${fb?'disabled':''}>${esc(q.o[i])}</button>`}).join('')}</div>
-      ${fb?`<div class="feedback ${fb.ok?'ok':'bad'}"><b>${S.games[G.gid]?.superfinal?(fb.ok?'Правильно · +1 міфічний камінь':'Помилка · камінь не отримано'):`${fb.ok?'Правильно':'Помилка'} · ${fb.p.base>=0?'+':''}${fb.p.base}${fb.p.speed?` · +${fb.p.speed} за швидкість (${fb.t} с)`:''}`}</b><br>${esc(q.n)}</div>`:''}`
+      ${fb?`<div class="feedback ${fb.ok?'ok':'bad'}"><b>${S.games[G.gid]?.superfinal?(fb.ok?'Правильно · +1 міфічний камінь':'Помилка · камінь не отримано'):`${fb.to?'Час вийшов':fb.ok?'Правильно':'Помилка'} · ${fb.p.base>=0?'+':''}${fb.p.base}${fb.p.speed?` · +${fb.p.speed} за швидкість (${fb.t} с)`:''}`}</b><br>${esc(q.n)}</div>`:''}`
       :`<div class="empty">У цьому кластері немає питань. Оберіть інший.</div>`}
       <div class="row"><button class="btn" id="stop">Завершити раунд</button></div></div>`;
   }else{
@@ -769,6 +775,11 @@ function teamGameStats(gid,team){
 function renderRail(){
   const r=$('#rail');if(!r||!G.gid)return;
   const C=sc(),st=teamGameStats(G.gid,me.team),s=st.s,tb=teamsMap()[me.team];
+  {const f=st.R.fast?.[G.gid]||{},key=G.gid+'|'+me.team,now={d:!!(f.d&&f.d.team===me.team),r:!!(f.r&&f.r.team===me.team)},was=renderRail.fast?.[key];
+   if(was&&!S.games[G.gid]?.superfinal){['d','r'].forEach(k=>{const nm=k==='d'?'Діамант':'Рубін',who=teamsMap()[f[k]?.team]?.name;
+     if(was[k]&&!now[k])setTimeout(()=>toast(`${nm} за швидкість перейшов до «${who||'іншої команди'}»: вони відповіли швидше`),80);
+     if(!was[k]&&now[k])setTimeout(()=>toast(`${nm} за найшвидшу відповідь — ваш! Поки ніхто не відповість швидше`),80)})}
+   (renderRail.fast=renderRail.fast||{})[key]=now}
   const hr=$('#hudRank');if(hr)hr.textContent=st.rank+' з '+st.of;
   r.innerHTML=`<div class="panel"><div class="row" style="gap:10px">${emblem(tb?.em,40)}<div><div class="label">Команда</div><h3 style="font-size:18px">${esc(tb?.name||'Команда')}</h3></div></div>
     <div class="row sp"><div class="big">${st.R.mythic?`${gemIcon('m',30)} `:''}${fmt(st.total)}</div><span class="chip">${st.rank} місце з ${st.of}</span></div>${st.R.mythic?'<div class="note">міфічних каменів</div>':''}
@@ -779,11 +790,11 @@ function renderRail(){
      <div class="tile"><small>Невірних</small><b style="color:var(--rec)">${s.n?pct(1-s.acc):'0%'}</b></div>
      <div class="tile"><small>Отримано балів</small><b style="color:var(--easy)">+${fmt(st.earned)}</b></div>
      <div class="tile"><small>Втрачено балів</small><b style="color:var(--rec)">−${fmt(st.lost)}</b></div>
-     <div class="tile"><small>Камені</small><b>${gemsHtml(s.gems,18)}</b><small style="margin-top:4px">${(()=>{const k=streakState(myGame(G.gid)?.ev||[]);return`серії: ${gemIcon('d',12)} ${k.h}/5 · ${gemIcon('r',12)} ${k.m}/5`})()}</small></div>
+     <div class="tile"><small>Камені</small><b>${gemsHtml(s.gems,18)}</b><small style="margin-top:4px">${(()=>{const ev=(myGame(G.gid)?.ev||[]).filter(e=>inSlot(S.games[G.gid],e)),k=streakState(ev),sg=scoreEvents(ev,C).gems,f=st.R.fast?.[G.gid]||{},fd=f.d&&f.d.team===me.team,fr=f.r&&f.r.team===me.team;return`за серії: ${gemIcon('d',12)} ${sg.d} ${gemIcon('r',12)} ${sg.r}<br>за швидкість: ${fd?gemIcon('d',12)+' ваш':gemIcon('d',12)+' —'} ${fr?gemIcon('r',12)+' ваш':gemIcon('r',12)+' —'}<br>до наступного: ${gemIcon('d',12)} ${k.h}/5 · ${gemIcon('r',12)} ${k.m}/5`})()}</small></div>
      <div class="tile"><small>Найшвидші зараз</small><b style="font-size:14px;font-family:var(--f-body);font-weight:500;display:block;line-height:1.5">${(()=>{const f=st.R.fast?.[G.gid]||{},tm=teamsMap(),w=(k,ic)=>f[k]?`${gemIcon(ic,14)} ${f[k].team===me.team?'<b>ви</b>':esc(tm[f[k].team]?.name||'')} · ${f[k].t.toFixed(1)} с`:`${gemIcon(ic,14)} ще ніхто`;return w('d','d')+'<br>'+w('r','r')})()}</b></div></div>
     <div class="lines">${C.speedOn?`<div><span class="mute">Швидкість</span><span class="mono">+${fmt(s.speed)}</span></div>`:''}
      <div><span class="mute">Усі 3 кластери (${['e','m','h'].filter(k=>s.cnt[k]).length}/3)</span><span class="mono">${s.bAll?'+'+s.bAll:'—'}</span></div>
-     <div><span class="mute">Точність HARD &gt; ${C.hardShare}% (зараз ${s.cnt.h?Math.round(s.hardAcc*100)+'%':'—'})</span><span class="mono">${s.bHard?'+'+s.bHard:'—'}</span></div>
+     <div><span class="mute">Точність HARD ≥ ${C.hardShare}% (зараз ${s.cnt.h?Math.round(s.hardAcc*100)+'%':'—'})</span><span class="mono">${s.bHard?'+'+s.bHard:'—'}</span></div>
      <div><span class="mute">Правильних HARD</span><span class="mono">${s.okc.h}</span></div></div></div>
     <div class="panel"><div class="row sp"><h3>Усі команди</h3><span class="label">наживо</span></div>
      <div class="allt">${st.R.ts.map((t,i)=>`<div class="at${t.id===me.team?' me':''}"><span class="pl">${i+1}</span>${emblem(t.em,22)}<span class="an">${esc(t.name)}</span>${gemsHtml(t.s.gems,13)}<b class="mono">${st.R.mythic?gemIcon('m',13)+' ':''}${fmt(t.total)}</b></div>`).join('')}</div></div>`;
@@ -858,14 +869,14 @@ function renderRules(){
     <p class="note">Камені не додають балів. Вони вирішують нічию: спершу діаманти, потім рубіни. Серія рахується всередині свого кластера: помилка в ньому обриває, EASY не впливає. Швидкість — час від показу питання до відповіді; камінь за швидкість закріплюється після завершення гри.</p>
     <h3>Бонуси за гру</h3><div class="lines">
     <div><span>Зіграв у всіх трьох кластерах</span><span class="mono">+${C.bAll}</span></div>
-    <div><span>Точність на HARD понад ${C.hardShare}% (від ${C.hardMin} відповідей на HARD)</span><span class="mono">+${C.bHard}</span></div>
+    <div><span>Точність на HARD від ${C.hardShare}% (від ${C.hardMin} відповідей на HARD; при 10 — це 9 правильних)</span><span class="mono">+${C.bHard}</span></div>
     ${C.speedOn?`<div><span>Швидкість: за правильну відповідь до +${C.speedPct}% балів питання, бонус спадає до нуля за час питання</span><span class="mono">до +${Math.round(P.h.ok*C.speedPct/100)}</span></div>`:''}</div></div>
    <div class="panel"><h2>Як іде гра</h2><div class="lines">
     <div><span class="mute">Коли</span><span>лише в часовий слот, який відкриває організатор</span></div>
     <div><span class="mute">Гра</span><span>${C.qPerGame} питань: ${C.quota.e} EASY, ${C.quota.m} MEDIUM, ${C.quota.h} HARD; раунди по ${C.qPerRound}; без повторів</span></div>
     <div><span class="mute">Максимум</span><span><b>${fmt(maxGame(C))}</b> балів за гру (${fmt(maxGame(C)-C.bAll-C.bHard)} за питання + ${fmt(C.bAll+C.bHard)} бонусів)</span></div>
     <div><span class="mute">Раунд</span><span>${C.qPerRound} питань${C.round>0?`, до ${mmss(C.round)}`:''}</span></div>
-    <div><span class="mute">Час на питання</span><span>EASY ${fmtT(C.qTimeE)}, MEDIUM ${fmtT(C.qTimeM)}, HARD ${fmtT(C.qTimeH)}; не встигли — пропуск без штрафу</span></div>
+    <div><span class="mute">Час на питання</span><span>EASY ${fmtT(C.qTimeE)}, MEDIUM ${fmtT(C.qTimeM)}, HARD ${fmtT(C.qTimeH)}; не встигли — 0 балів, питання зараховано</span></div>
     <div><span class="mute">Кластер</span><span>обираєте самі, перемикати можна будь-коли</span></div>
     <div><span class="mute">Команда</span><span>бали всіх гравців сумуються</span></div>
     <div><span class="mute">Рівні бали</span><span>діаманти → рубіни → суперфінал</span></div>
@@ -1208,7 +1219,7 @@ function renderBoard(){
   const tm=teamsMap(),C=R.C;
   const last=R.ev.filter(e=>e.at).sort((a,b)=>b.at-a.at).slice(0,9);
   $('#bFeed').innerHTML=last.map(e=>{const k=e.uid+'_'+e.at+'_'+e.q,isNew=!board.seen.has(k);board.seen.add(k);const p=evPts(e,C),pts=R.mythic?(e.ok?1:0):p.base+p.speed;
-    return`<div class="fd${isNew?' new':''}"><span class="fn">${teamEm(e.team,18)} <b>${esc(tm[e.team]?.name||names[e.uid]||'Команда')}</b> <span class="mute">${esc(e.topic)}</span></span><span class="row" style="gap:6px;flex-wrap:nowrap;flex-shrink:0"><span class="chip ${e.cl}">${CL[e.cl].name}</span><span class="mono ${e.ok?'okc':'badc'}">${e.ok?'✓':'✗'} ${R.mythic?(e.ok?'+1 '+gemIcon('m',13):'0'):(pts>=0?'+':'')+pts}</span></span></div>`}).join('')||'<p class="note">Чекаємо на першу відповідь…</p>';
+    return`<div class="fd${isNew?' new':''}"><span class="fn">${teamEm(e.team,18)} <b>${esc(tm[e.team]?.name||names[e.uid]||'Команда')}</b> <span class="mute">${esc(e.topic)}</span></span><span class="row" style="gap:6px;flex-wrap:nowrap;flex-shrink:0"><span class="chip ${e.cl}">${CL[e.cl].name}</span><span class="mono ${e.ok?'okc':'badc'}">${e.to?'⏱':e.ok?'✓':'✗'} ${R.mythic?(e.ok?'+1 '+gemIcon('m',13):'0'):(pts>=0?'+':'')+pts}</span></span></div>`}).join('')||'<p class="note">Чекаємо на першу відповідь…</p>';
   $('#bTop').innerHTML=R.ts.filter(t=>t.s.n).sort((a,b)=>b.s.okc.h-a.s.okc.h).slice(0,5).map((t,i)=>`<div><span class="row" style="gap:8px;flex-wrap:nowrap"><span class="pl">${i+1}</span>${emblem(t.em,20)}${esc(t.name)}</span><span class="mono">${t.s.okc.h} <span class="mute">з ${t.s.cnt.h}</span></span></div>`).join('')||'<div><span class="mute">Поки порожньо</span></div>';
   const all=finS(R.ev.reduce((a,e)=>addS(a,scoreEvents([e],C)),null)||scoreEvents([],C));
   $('#bStats').innerHTML=[['Точність',pct(all.acc)],['Частка HARD',pct(all.hardShare)],['Сер. час відповіді',all.avgT.toFixed(1)+' с'],['Бонусів за кластери',R.ts.filter(t=>t.s.bAll||t.s.bHard).length]]
@@ -1453,9 +1464,10 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
   if(REAL.isOwner){await auth.signOut();location.reload();return}
   try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());location.reload()}
   catch(e){console.warn(e);toast(e&&e.code==='auth/popup-blocked'?'Браузер заблокував вікно входу. Дозвольте спливаючі вікна для цієї сторінки.':'Вхід не вдався. Спробуйте ще раз.')}};
+function initOffline(){initLocal();REAL.isOwner=false;REAL.offline=true;renderAll()}
 (async()=>{
   if(location.hash==='#demo'){initLocal();startDemo();return}
-  if(!window.firebase){initLocal();return}
+  if(!window.firebase){initOffline();return}
   syncClock();
   try{
     firebase.initializeApp(FB_CONFIG);
@@ -1463,11 +1475,11 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
     if(USE_EMULATOR){auth.useEmulator('http://127.0.0.1:9099',{disableWarnings:true});db.useEmulator('127.0.0.1',8080)}
     let started=false;
     auth.onAuthStateChanged(async fu=>{
-      if(!fu){try{await auth.signInAnonymously()}catch(e){console.warn(e);if(!started){started=true;initLocal()}}return}
+      if(!fu){try{await auth.signInAnonymously()}catch(e){console.warn(e);if(!started){started=true;initOffline()}}return}
       if(started){if(fu.uid!==REAL.uid)location.reload();return}
       started=true;await initDb(db,fu);
     });
-  }catch(e){console.warn(e);initLocal()}
+  }catch(e){console.warn(e);initOffline()}
 })();
 </script>
 <canvas id="fx" aria-hidden="true"></canvas><canvas id="fx2" aria-hidden="true"></canvas>
@@ -1747,4 +1759,46 @@ $('#authBtn').onclick=async()=>{const auth=firebase.auth();
     else if(fresh.length&&G.state!=='play'&&Date.now()-lastBlip>350){lastBlip=Date.now();play('blip',fresh[fresh.length-1].ok)}
   },250);
 })();
+</script>
+<style>
+.whobox{display:inline-flex;align-items:center;gap:8px;padding:4px 12px 4px 4px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font-size:13px;line-height:1.15}
+.whobox img,.whobox i,.cab-id img,.cab-id i{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:12px;background:var(--accent);color:var(--on-accent,#fff)}
+.whobox b{display:block;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whobox small{color:var(--accent-ink);font:600 10px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase}
+.cab{margin-bottom:18px}
+.cab-id{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.cab-id>div{flex:1;min-width:0}
+.cab-id img,.cab-id i{width:56px;height:56px;font-size:20px}
+.cab-id h2{font-size:22px;margin-top:4px;overflow-wrap:anywhere}
+.cab-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.cab-grid>div{background:var(--panel2);border-radius:10px;padding:10px 12px;min-width:0}
+.cab-grid small{display:block;color:var(--mute);font-size:12px;margin-bottom:3px}
+.cab-grid b{font-weight:600;font-size:14px}
+</style>
+<script>
+/* ===== who is signed in: badge in the header ===== */
+if(typeof renderHeader==='function'){const _rh=renderHeader;renderHeader=function(){_rh.apply(this,arguments);
+  const wb=document.getElementById('whoBox');if(!wb)return;const u=REAL.user,show=REAL.mode==='db'&&REAL.isOwner&&!!u&&!(typeof DEMO!=='undefined'&&DEMO);wb.hidden=!show;if(!show)return;
+  const nm=u.displayName||u.email,ini=(nm||'?').trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
+  wb.innerHTML=`${u.photoURL?`<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">`:`<i>${esc(ini)}</i>`}<span><b>${esc(nm)}</b><small>Організатор</small></span>`;wb.title=u.email||''}}
+/* ===== organizer cabinet: who is signed in, role, quick links ===== */
+if(typeof renderAdmin==='function'){const _ra=renderAdmin;renderAdmin=function(){_ra.apply(this,arguments);
+  const el=document.getElementById('tab-admin');if(!el||!S.isOwner||(typeof DEMO!=='undefined'&&DEMO)||REAL.mode!=='db'||!REAL.user)return;
+  const u=REAL.user,nm=u.displayName||u.email,ini=(nm||'?').trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase(),link=location.origin+location.pathname;
+  const last=u.metadata&&u.metadata.lastSignInTime?new Date(u.metadata.lastSignInTime).toLocaleString('uk-UA'):'—';
+  const card=document.createElement('div');card.className='panel cab';card.innerHTML=`
+   <div class="cab-id">${u.photoURL?`<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">`:`<i>${esc(ini)}</i>`}
+    <div><div class="label">Кабінет організатора</div><h2>${esc(nm)}</h2><div class="mute">${esc(u.email||'')}</div></div>
+    <button class="btn" id="cabOut">Вийти</button></div>
+   <div class="cab-grid">
+    <div><small>Роль</small><b>Організатор · повний доступ</b></div>
+    <div><small>Останній вхід через Google</small><b>${esc(last)}</b></div>
+    <div><small>Організатори гри</small><b>${OWNERS.map(esc).join(', ')}</b></div>
+    <div><small>Посилання для капітанів</small><b class="mono" style="overflow-wrap:anywhere;font-size:12.5px">${esc(link)}</b> <button class="btn sm" id="cabCopy" style="margin-top:6px">Копіювати</button></div>
+   </div>
+   <div class="row" style="gap:8px"><a class="btn sm" style="text-decoration:none" href="https://console.firebase.google.com/project/${FB_CONFIG.projectId}/firestore" target="_blank" rel="noopener">База Firebase ↗</a>
+    <a class="btn sm" style="text-decoration:none" href="https://github.com/vovkvlgr-ctrl/hikvision-battle" target="_blank" rel="noopener">Репозиторій GitHub ↗</a></div>`;
+  el.prepend(card);
+  card.querySelector('#cabOut').onclick=()=>document.getElementById('authBtn').click();
+  card.querySelector('#cabCopy').onclick=()=>copyText(link)}}
 </script>
