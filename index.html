@@ -1659,6 +1659,7 @@ function initOffline(){initLocal();REAL.isOwner=false;REAL.offline=true;renderAl
 
   /* ---- background music: generative loop, plays only while a game is live ---- */
   let musicOn=true;try{musicOn=localStorage.getItem('hb2_mus')!=='off'}catch(e){}
+  let musicStyle='theme';try{musicStyle=localStorage.getItem('hb2_musstyle')==='arcade'?'arcade':'theme'}catch(e){}
   const M={bus:null,run:false,step:0,next:0,timer:null,hot:false,delay:null};
   function mInit(){if(M.bus)return;M.bus=ctx.createGain();M.bus.gain.value=0;M.bus.connect(master);
     M.delay=ctx.createDelay(1);const fb=ctx.createGain(),wet=ctx.createGain();fb.gain.value=.32;wet.gain.value=.25;
@@ -1671,7 +1672,8 @@ function initOffline(){initLocal();REAL.isOwner=false;REAL.offline=true;renderAl
     o.connect(f);f.connect(g);g.connect(M.bus);if(echo)g.connect(M.delay);o.start(t);o.stop(t+dur+.03)}
   function kick(t,v){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.setValueAtTime(hellish()?140:120,t);o.frequency.exponentialRampToValueAtTime(42,t+.16);
     g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+.32);o.connect(g);g.connect(M.bus);o.start(t);o.stop(t+.34)}
-  let NB=null;function hat(t,v,len=.035){if(!NB){NB=ctx.createBuffer(1,ctx.sampleRate*.3,ctx.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+  let NB=null;function nb(){if(!NB){NB=ctx.createBuffer(1,ctx.sampleRate*.3,ctx.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}return NB}
+  function hat(t,v,len=.035){nb();
     const n=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();n.buffer=NB;f.type='highpass';f.frequency.value=hellish()?5200:7600;
     g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+len);n.connect(f);f.connect(g);g.connect(M.bus);n.start(t);n.stop(t+len+.01)}
   /* cold: A minor synth-pulse  ·  hell: D phrygian drive */
@@ -1687,12 +1689,36 @@ function initOffline(){initLocal();REAL.isOwner=false;REAL.offline=true;renderAl
       if(s%2===0)mv(root+(s%4===2?12:0),t,.2,.11,'triangle',700,false);
       const arp=[0,1,2,1,2,0,1,2];mv(ch[arp[s%8]]+12+(s>=8&&M.hot?12:0),t,.18,.045,'triangle',4200,true);
       if(s===0)ch.forEach(n=>mv(n,t,2.2,.022,'sawtooth',1500,false)) }}
-  function mSched(){if(!M.run)return;const bpm=(hellish()?SONG.hell:SONG.cold).bpm+(M.hot?8:0),sp=60/bpm/4,ahead=document.hidden?1.5:.25;
+  /* ---- 80s arcade: an original chiptune in A minor (pulse lead, triangle bass, noise drums, fast arps) ---- */
+  const PW={};function pulse(d){if(PW[d])return PW[d];const N=48,re=new Float32Array(N),im=new Float32Array(N);for(let n=1;n<N;n++)im[n]=2/(n*Math.PI)*Math.sin(n*Math.PI*d);return PW[d]=ctx.createPeriodicWave(re,im)}
+  function chip(midi,t,dur,vol,duty,slide){const o=ctx.createOscillator(),g=ctx.createGain();if(duty==='tri')o.type='triangle';else o.setPeriodicWave(pulse(duty));
+    o.frequency.setValueAtTime(hz(midi),t);if(slide)o.frequency.exponentialRampToValueAtTime(hz(midi+slide),t+dur);
+    g.gain.setValueAtTime(vol,t);g.gain.setValueAtTime(vol*.8,t+dur*.6);g.gain.linearRampToValueAtTime(0,t+dur);o.connect(g);g.connect(M.bus);o.start(t);o.stop(t+dur+.02)}
+  function chipNoise(t,v,len,hp){nb();const n=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();n.buffer=NB;f.type='highpass';f.frequency.value=hp;
+    g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+len);n.connect(f);f.connect(g);g.connect(M.bus);n.start(t);n.stop(t+len+.01)}
+  const _=null,ARC={bpm:138,
+    ch:[[57,60,64],[53,57,60],[55,59,62],[52,56,59]],bass:[45,41,43,40],
+    lead:[69,_,72,_,76,_,74,72, 71,_,72,74,76,_,_,_,
+          77,_,76,_,72,_,69,_, 72,74,72,_,69,_,_,_,
+          74,_,79,_,77,76,74,_, 71,_,74,_,79,_,77,_,
+          76,_,75,76,80,_,76,_, 71,_,75,_,76,_,_,_]};
+  function arcadeStep(t,i){
+    const bar=Math.floor(i/16)%4,s=i%16,ch=ARC.ch[bar],sp=60/(ARC.bpm+(M.hot?16:0))/4,turn=Math.floor(i/64)%2;
+    if(s%4===0)chip(33+(bar===1?-4:bar===2?-2:bar===3?-5:0),t,.07,.22,'tri',-24);          /* kick: dropping triangle */
+    if(s===4||s===12)chipNoise(t,.16,.09,1800);                                            /* snare */
+    if(s%2===1||M.hot)chipNoise(t,.05,.025,8000);                                          /* hat */
+    chip(ARC.bass[bar]-12+(s%2?12:0),t,sp*.9,.16,'tri');                                   /* octave-jumping bass */
+    if(s%2===0)[0,1,2].forEach(k=>chip(ch[(k+s/2)%3]+12,t+k*sp/3,sp/3*.9,.035,.125));       /* fast arpeggio */
+    const n=ARC.lead[(i%64)];if(n!==_){let len=1;while(len<4&&ARC.lead[(i%64)+len]===_)len++;
+      chip(n+(turn||M.hot?12:0),t,sp*len*.92,.075,.25);chip(n+(turn||M.hot?12:0),t+sp*.5,sp*len*.6,.025,.25)}}  /* lead + echo */
+  function mSched(){if(!M.run)return;if(musicStyle==='arcade'){const sp=60/(ARC.bpm+(M.hot?16:0))/4,ahead=document.hidden?1.5:.25;
+      while(M.next<ctx.currentTime+ahead){arcadeStep(M.next,M.step);M.next+=sp;M.step++}return}
+    const bpm=(hellish()?SONG.hell:SONG.cold).bpm+(M.hot?8:0),sp=60/bpm/4,ahead=document.hidden?1.5:.25;
     while(M.next<ctx.currentTime+ahead){mStep(M.next,M.step);M.next+=sp;M.step++}}
   function musicStart(){if(M.run||!ready())return;mInit();M.run=true;M.step=0;M.next=ctx.currentTime+.1;M.delay.delayTime.value=60/(hellish()?124:112)*.75;
     const g=M.bus.gain,t=ctx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(0,t);g.linearRampToValueAtTime(LVL,t+2.5);M.timer=setInterval(mSched,50);mSched()}
   function musicStop(){if(!M.run)return;M.run=false;clearInterval(M.timer);const g=M.bus.gain,t=ctx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(0,t+1.5)}
-  window.HBSND.music={start:musicStart,stop:musicStop,get run(){return M.run},_s:mSched,set hot(v){M.hot=v}};
+  window.HBSND.music={start:musicStart,stop:musicStop,get run(){return M.run},_s:mSched,set hot(v){M.hot=v},set style(v){musicStyle=v},get style(){return musicStyle}};
 
   /* ---- toggle in the OSD strip ---- */
   const osd=document.querySelector('.osdctl')||document.querySelector('.osd');
@@ -1701,8 +1727,10 @@ function initOffline(){initLocal();REAL.isOwner=false;REAL.offline=true;renderAl
     b.onclick=()=>{on=!on;try{localStorage.setItem('hb2_snd',on?'on':'off')}catch(e){}lab();if(on){unlock();setTimeout(()=>play('round'),60)}};
     osd.appendChild(b);
     const mb=document.createElement('button');mb.className='skinbtn';mb.type='button';
-    const mlab=()=>{mb.textContent=musicOn?'Музика: увімк.':'Музика: вимк.';mb.setAttribute('aria-pressed',musicOn)};mlab();
-    mb.onclick=()=>{musicOn=!musicOn;try{localStorage.setItem('hb2_mus',musicOn?'on':'off')}catch(e){}mlab();if(!musicOn)musicStop();else unlock()};
+    const mlab=()=>{mb.textContent=!musicOn?'Музика: вимк.':musicStyle==='arcade'?'Музика: аркада 80-х':'Музика: тема';mb.setAttribute('aria-pressed',musicOn);mb.title='Тема → аркада 80-х → вимк.'};mlab();
+    mb.onclick=()=>{const was=M.run;if(musicOn&&musicStyle==='theme')musicStyle='arcade';else if(musicOn){musicOn=false}else{musicOn=true;musicStyle='theme'}
+      try{localStorage.setItem('hb2_mus',musicOn?'on':'off');localStorage.setItem('hb2_musstyle',musicStyle)}catch(e){}mlab();
+      if(!musicOn)musicStop();else{unlock();if(was){M.step=0;M.next=ctx.currentTime+.05}}};
     osd.appendChild(mb)}
 
   /* ---- game hooks ---- */
