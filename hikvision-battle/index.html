@@ -1288,7 +1288,7 @@ function exitDemo(){if(!DEMO)return;clearInterval(DEMO.timer);const sv=DEMO.save
 async function demoPlay(){if(!DEMO)return;capPreview=true;const lg=seasonGames().find(isLive);showTab('game');if(!lg){renderAll();return}
   if(myAns.games?.[lg.id]?.team){G.gid=lg.id;if(G.state!=='play')startRound();renderAll();return}
   if(!DEMO.code){const c=await genCodes(lg.id);DEMO.code=c.guest}await enterCode(DEMO.code)}
-function renderDemoBar(){const el=$('#demoBar');$('#demoBtn').hidden=!!DEMO||!isOrg();if(!DEMO){el.hidden=true;return}
+function renderDemoBar(){const el=$('#demoBar');$('#demoBtn').hidden=!!DEMO||!S.isOwner;if(!DEMO){el.hidden=true;return}
   el.hidden=false;
   const live=seasonGames().some(isLive);
   el.innerHTML=`<div class="row" style="gap:8px 14px"><span class="chip" style="background:var(--accent);border-color:var(--accent);color:#fff">ДЕМО</span><span>Симуляція: 10 команд грають наживо.${DEMO.code?` Код для гостей (вхід у вигляді команди): <b class="mono" style="letter-spacing:.12em">${DEMO.code}</b>`:''} Справжні дані не змінюються.</span></div>
@@ -1455,7 +1455,7 @@ function renderAll(dataOnly){cancelAnimationFrame(rq);rq=requestAnimationFrame((
 
 /* ================= boot ================= */
 $('#tab-game').innerHTML='<div class="empty">Завантаження…</div>';
-$('#demoBtn').onclick=startDemo;
+$('#demoBtn').onclick=()=>{const asTeam=capPreview;startDemo();if(asTeam)setTimeout(()=>{if(DEMO)demoPlay()},400)};
 $('#viewBtn').onclick=()=>{if(DEMO&&!capPreview){demoPlay();return}capPreview=!capPreview;renderAll();showTab(capPreview?'game':curTab)};
 async function syncClock(){/* server time from the page host's Date header */
   try{const t0=Date.now(),r=await fetch(location.href.split('#')[0],{method:'HEAD',cache:'no-store'}),d=r.headers.get('date');
