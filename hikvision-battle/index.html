@@ -498,9 +498,19 @@ async function initDb(db,fu){
   if(!REAL.uid)REAL.readonly=true;
   let first={cfg:0,seasons:0,games:0,questions:0,answers:0,claims:0};
   const err=e=>{console.warn('listen failed',e);if(e&&e.code==='permission-denied'){REAL.readonly=true;(S===REAL&&renderAll())}};
-  db.doc('cfg/main').onSnapshot(s=>{REAL.cfg=s.exists?clone(s.data()):{};first.cfg=1;REAL.ready=Object.values(first).every(Boolean);(S===REAL&&renderAll(true))},err);
+  /* questions: the organizer always reads them; teams only while a game is open (cfg.qOpenUntil, enforced by the database rules) */
+  const qReady=()=>{first.questions=1;REAL.ready=Object.values(first).every(Boolean)};
+  const qOpen=()=>REAL.isOwner||(REAL.cfg&&(REAL.cfg.qOpenUntil||0)>vnow());
+  const qGate=()=>{
+    if(qOpen()){if(REAL._qUnsub)return;
+      REAL._qUnsub=db.collection('questions').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=clone(d.data()));REAL.questions=o;qReady();
+        if(S===REAL){if(G.state==='play'&&!G.q&&!G.answered){nextQ()}renderAll(true)}},
+        e=>{console.warn('questions closed',e&&e.code);try{REAL._qUnsub&&REAL._qUnsub()}catch(x){}REAL._qUnsub=null;REAL.questions={};qReady();(S===REAL&&renderAll(true))})}
+    else{if(REAL._qUnsub){try{REAL._qUnsub()}catch(x){}REAL._qUnsub=null}REAL.questions={};qReady()}};
+  setInterval(qGate,15000);
+  db.doc('cfg/main').onSnapshot(s=>{REAL.cfg=s.exists?clone(s.data()):{};first.cfg=1;qGate();REAL.ready=Object.values(first).every(Boolean);(S===REAL&&renderAll(true))},err);
   if(REAL.isOwner)db.collection('secret').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=clone(d.data()));REAL.secret=o;(S===REAL&&renderAll(true))},err);
-  ['seasons','games','questions','answers','claims'].forEach(c=>db.collection(c).onSnapshot(snap=>{
+  ['seasons','games','answers','claims'].forEach(c=>db.collection(c).onSnapshot(snap=>{
     const o={};snap.docs.forEach(d=>o[d.id]=clone(d.data()));REAL[c]=o;first[c]=1;
     if(c==='answers'&&S===REAL&&REAL.uid&&!myDirty&&o[REAL.uid])myAns=clone(o[REAL.uid]);
     REAL.ready=Object.values(first).every(Boolean);(S===REAL&&renderAll(true));
@@ -657,6 +667,12 @@ function timeoutQ(QT){const q=G.q,mg=myAns.games?.[G.gid];if(!q||!mg||G.answered
   G.fb={ok:false,to:true,i:-1,p:{base:0,speed:0},t:QT};saveMine();renderGame();toast('Час вийшов — питання зараховано без балів');
   const lim=gameLimit(S.games[G.gid]),perR=S.games[G.gid]?.superfinal?lim:sc().qPerRound;
   setTimeout(()=>{if(G.state==='play'){if(Date.now()>=G.roundEnd||mg.ev.length>=lim||G.roundEv.length>=perR)endRound();else{nextQ();renderGame()}}},2200)}
+/* the organizer's writes to games keep cfg.qOpenUntil = end of the live game + 2 min */
+{const _write=write;write=function(path,data){const r=_write(path,data);
+  if(S===REAL&&S.mode==='db'&&S.isOwner&&String(path).startsWith('games/')){const now=vnow();let until=0;
+    Object.values(S.games).forEach(g=>{if(g&&g.status==='live'&&g.endsAt>now)until=Math.max(until,g.endsAt+120000)});
+    const cur=S.cfg.qOpenUntil||0;if(until!==cur&&!(until===0&&cur<now))_write('cfg/main',Object.assign({},S.cfg,{qOpenUntil:until}))}
+  return r}}
 let saveTimer=null;
 function saveMine(){if(S.readonly)return;myDirty=true;clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{const data=clone(myAns);await write('answers/'+S.uid,data);myDirty=false},600)}

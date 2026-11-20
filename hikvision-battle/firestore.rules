@@ -16,7 +16,12 @@ service cloud.firestore {
     match /cfg/{id}       { allow read: if signedIn(); allow write: if isOwner(); }
     match /seasons/{id}   { allow read: if signedIn(); allow write: if isOwner(); }
     match /games/{id}     { allow read: if signedIn(); allow write: if isOwner(); }
-    match /questions/{id} { allow read: if signedIn(); allow write: if isOwner(); }
+    // Питання: організатор — завжди; команди — лише поки йде гра (гра сама відкриває й закриває це вікно)
+    match /questions/{id} {
+      allow read: if isOwner()
+        || (signedIn() && get(/databases/$(database)/documents/cfg/main).data.get('qOpenUntil', 0) > request.time.toMillis());
+      allow write: if isOwner();
+    }
 
     // Коди команд у відкритому вигляді: бачить лише організатор
     match /secret/{id}    { allow read, write: if isOwner(); }
