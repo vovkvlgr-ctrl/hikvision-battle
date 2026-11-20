@@ -596,11 +596,13 @@ function renderHeader(){
       $('#topKpis').innerHTML=`<div class="kpi"><b>№ ${no}</b><small>гра з ${games.length}</small></div><div class="kpi"><b>${st.rank}/${st.of}</b><small>місце</small></div><div class="kpi"><b>${st.s.n}</b><small>питань</small></div><div class="kpi"><b>${pct(st.s.acc)}</b><small>вірних</small></div><div class="kpi"><b>${fmt(st.total)}</b><small>балів</small></div>`}
     else $('#topKpis').innerHTML=`<div class="kpi"><b>${games.length}</b><small>ігор у сезоні</small></div><div class="kpi"><b>${(s?.teams||[]).length}</b><small>команд</small></div>`}
   {const ab=$('#authBtn');if(ab){ab.hidden=REAL.mode!=='db'||!!DEMO;ab.textContent=REAL.isOwner?'Вийти':'Вхід організатора';ab.title=REAL.isOwner?(REAL.user?.email||''):'Лише для організатора гри'}}
-  $('#viewBtn').hidden=!S.isOwner;$('#viewBtn').textContent=capPreview?'Вигляд організатора':'Вигляд команди';
+  $('#viewBtn').hidden=!S.isOwner||!!(typeof DEMO!=='undefined'&&DEMO&&DEMO.guest);$('#viewBtn').textContent=capPreview?'Вигляд організатора':'Вигляд команди';
   const mb=$('#modeBar');
-  if(S.isOwner&&capPreview){mb.hidden=false;mb.textContent='Ви бачите сторінку так, як її бачить команда. Керування й загальна аналітика сховані.'}
+  if(S.isOwner&&capPreview&&!(DEMO&&DEMO.guest)){mb.hidden=false;mb.textContent='Ви бачите сторінку так, як її бачить команда. Керування й загальна аналітика сховані.'}
   else if(S.mode==='local'){mb.hidden=false;mb.textContent='Немає з’єднання з базою гри, тому все зберігається лише в цьому браузері. Перевірте інтернет і оновіть сторінку.'}
   else if(S.readonly){mb.hidden=false;mb.textContent='Не вдалося підключитися до гри: рейтинг видно, але відповіді не зберігаються. Оновіть сторінку.'}
+  else if(!S.isOwner&&S.mode==='db'&&S.cfg?.practice){mb.hidden=false;mb.textContent='Відкрита пробна гра: натисніть «▶ Пробна гра» вгорі й потренуйтеся на тренувальних питаннях. Результати нікуди не зберігаються.'}
+  else if(DEMO&&DEMO.guest){mb.hidden=true}
   else mb.hidden=true;
 }
 
@@ -1288,15 +1290,15 @@ function exitDemo(){if(!DEMO)return;clearInterval(DEMO.timer);const sv=DEMO.save
 async function demoPlay(){if(!DEMO)return;capPreview=true;const lg=seasonGames().find(isLive);showTab('game');if(!lg){renderAll();return}
   if(myAns.games?.[lg.id]?.team){G.gid=lg.id;if(G.state!=='play')startRound();renderAll();return}
   if(!DEMO.code){const c=await genCodes(lg.id);DEMO.code=c.guest}await enterCode(DEMO.code)}
-function renderDemoBar(){const el=$('#demoBar');$('#demoBtn').hidden=!!DEMO||!S.isOwner;if(!DEMO){el.hidden=true;return}
+function renderDemoBar(){const el=$('#demoBar');$('#demoBtn').hidden=!!DEMO||!(REAL.isOwner||REAL.cfg?.practice);$('#demoBtn').textContent=REAL.isOwner?'▶ Демо-симуляція':'▶ Пробна гра';if(!DEMO){el.hidden=true;return}
   el.hidden=false;
   const live=seasonGames().some(isLive);
-  el.innerHTML=`<div class="row" style="gap:8px 14px"><span class="chip" style="background:var(--accent);border-color:var(--accent);color:#fff">ДЕМО</span><span>Симуляція: 10 команд грають наживо.${DEMO.code?` Код для гостей (вхід у вигляді команди): <b class="mono" style="letter-spacing:.12em">${DEMO.code}</b>`:''} Справжні дані не змінюються.</span></div>
+  el.innerHTML=`<div class="row" style="gap:8px 14px"><span class="chip" style="background:var(--accent);border-color:var(--accent);color:#fff">ДЕМО</span><span>${DEMO.guest?'Пробна гра: ви граєте проти 10 команд-ботів на тренувальних питаннях.':'Симуляція: 10 команд грають наживо.'}${DEMO.code&&!DEMO.guest?` Код для гостей (вхід у вигляді команди): <b class="mono" style="letter-spacing:.12em">${DEMO.code}</b>`:''} Справжні дані не змінюються.</span></div>
    <div class="row" style="gap:6px">${[[0,'Пауза'],[1,'×1'],[5,'×5'],[20,'×20']].map(([v,l])=>`<button class="btn sm" data-spd="${v}" aria-pressed="${DEMO.speed===v}" style="${DEMO.speed===v?'border-color:var(--fg)':''}">${l}</button>`).join('')}
    ${live?`<button class="btn sm" id="dmEnd">Завершити гру</button>`:''}${seasonGames().some(isLive)?`<button class="btn sm pri" id="dmPlay">▶ Зіграти за команду</button>`:''}${seasonGames().some(g=>g.superfinal)?'':`<button class="btn sm" id="dmSf">${gemIcon('m',14)} Показати суперфінал</button>`}<button class="btn sm" id="dmRestart">Почати знову</button><button class="btn sm pri" id="dmExit">Вийти з демо</button></div>`;
   $$('[data-spd]').forEach(b=>b.onclick=()=>{DEMO.speed=+b.dataset.spd;renderDemoBar()});
   const e=$('#dmEnd');if(e)e.onclick=()=>{seasonGames().filter(isLive).forEach(g=>{S.games[g.id]=Object.assign({},S.games[g.id],{status:'closed',endsAt:vnow()})});renderAll();showTab('board')};
-  $('#dmRestart').onclick=()=>{exitDemo();startDemo()};
+  $('#dmRestart').onclick=()=>{const g=DEMO&&DEMO.guest;exitDemo();startDemo();if(g&&DEMO){DEMO.guest=true;setTimeout(()=>{if(DEMO)demoPlay()},400)}};
   const sfb=$('#dmSf');if(sfb)sfb.onclick=async()=>{sfb.disabled=true;const now=vnow();
     ['gC','gD','gE'].forEach((id,i)=>{const g=S.games[id];S.games[id]=Object.assign({},g,{status:'closed',startedAt:g.startedAt||now-(3-i)*3600e3,endsAt:Math.min(g.endsAt||now,now)})});
     const top=compute(seasonGames().map(g=>g.id)).ts.filter(t=>t.s.n).slice(0,2).map(t=>t.id);
@@ -1455,7 +1457,7 @@ function renderAll(dataOnly){cancelAnimationFrame(rq);rq=requestAnimationFrame((
 
 /* ================= boot ================= */
 $('#tab-game').innerHTML='<div class="empty">Завантаження…</div>';
-$('#demoBtn').onclick=()=>{const asTeam=capPreview;startDemo();if(asTeam)setTimeout(()=>{if(DEMO)demoPlay()},400)};
+$('#demoBtn').onclick=()=>{const guest=!REAL.isOwner,asTeam=capPreview||guest;startDemo();if(guest&&DEMO){DEMO.guest=true;renderAll()}if(asTeam)setTimeout(()=>{if(DEMO)demoPlay()},400)};
 $('#viewBtn').onclick=()=>{if(DEMO&&!capPreview){demoPlay();return}capPreview=!capPreview;renderAll();showTab(capPreview?'game':curTab)};
 async function syncClock(){/* server time from the page host's Date header */
   try{const t0=Date.now(),r=await fetch(location.href.split('#')[0],{method:'HEAD',cache:'no-store'}),d=r.headers.get('date');
@@ -1822,11 +1824,13 @@ if(typeof renderAdmin==='function'){const _ra=renderAdmin;renderAdmin=function()
     <div><small>Роль</small><b>Організатор · повний доступ</b></div>
     <div><small>Останній вхід через Google</small><b>${esc(last)}</b></div>
     <div><small>Організатори гри</small><b>${OWNERS.map(esc).join(', ')}</b></div>
+    <div><small>Пробна гра для команд</small><b>${S.cfg.practice?'Відкрита: команди бачать кнопку «▶ Пробна гра»':'Закрита'}</b> <button class="btn sm" id="cabPractice" style="margin-top:6px">${S.cfg.practice?'Закрити пробну гру':'Відкрити пробну гру'}</button></div>
     <div><small>Посилання для капітанів</small><b class="mono" style="overflow-wrap:anywhere;font-size:12.5px">${esc(link)}</b> <button class="btn sm" id="cabCopy" style="margin-top:6px">Копіювати</button></div>
    </div>
    <div class="row" style="gap:8px"><a class="btn sm" style="text-decoration:none" href="https://console.firebase.google.com/project/${FB_CONFIG.projectId}/firestore" target="_blank" rel="noopener">База Firebase ↗</a>
     <a class="btn sm" style="text-decoration:none" href="https://github.com/vovkvlgr-ctrl/hikvision-battle" target="_blank" rel="noopener">Репозиторій GitHub ↗</a></div>`;
   el.prepend(card);
   card.querySelector('#cabOut').onclick=()=>document.getElementById('authBtn').click();
-  card.querySelector('#cabCopy').onclick=()=>copyText(link)}}
+  card.querySelector('#cabCopy').onclick=()=>copyText(link);
+  card.querySelector('#cabPractice').onclick=()=>{const on=!S.cfg.practice;write('cfg/main',Object.assign({},S.cfg,{practice:on})).then(ok=>ok!==false&&toast(on?'Пробну гру відкрито для всіх команд.':'Пробну гру закрито.'))}}}
 </script>
