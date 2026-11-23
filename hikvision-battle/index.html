@@ -1458,7 +1458,7 @@ function renderTeam(){
 let curTab=LS.get('tab','game');
 let capPreview=false;
 const isOrg=()=>S.isOwner&&!capPreview;
-const TABS={org:['game','board','rating','analytics','rules','admin'],cap:['game','board','rating','team','rules']};
+const TABS={org:['game','board','rating','analytics','rules','admin'],cap:['game','board','rating','rules']};
 const ALL_TABS=['game','board','rating','analytics','team','rules','admin'];
 function showTab(t){const ok=TABS[isOrg()?'org':'cap'];const gb=document.querySelector('#tabs [data-tab="game"]');if(gb)gb.textContent=isOrg()?'Пульт':'Гра';if(!ok.includes(t))t='game';curTab=t;
   $$('#tabs button').forEach(b=>{b.hidden=!ok.includes(b.dataset.tab);b.setAttribute('aria-selected',b.dataset.tab===t)});
