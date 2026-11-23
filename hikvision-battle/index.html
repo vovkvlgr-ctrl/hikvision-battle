@@ -701,7 +701,7 @@ function renderGame(){
   const g=G.gid?S.games[G.gid]:null;
   if(g)me.team=myAns.games[G.gid].team;
   const codeBox=`<div class="panel"><h2>Вхід для команди</h2>
-      <p class="note">Код команди приходить на пошту капітана в день гри, за 15 хвилин до старту. Одна команда грає з одного пристрою.</p>
+      <p class="note">Код команди капітан отримує в день гри, за 15 хвилин до старту. Одна команда грає з одного пристрою.</p>
       <div class="row"><input type="text" id="codeIn" value="${esc(G.codeDraft||(DEMO&&DEMO.code)||'')}" placeholder="Код із листа" aria-label="Код команди" autocomplete="off" autocapitalize="characters" style="flex:1 1 180px;font-family:var(--f-mono);font-size:20px;letter-spacing:.2em;text-transform:uppercase">
       <button class="btn pri" id="codeGo">Увійти</button></div></div>`;
   const stdBind=()=>{bindCommon(el);const b=$('#codeGo');if(b)b.onclick=()=>enterCode();const i=$('#codeIn');if(i)i.onkeydown=e=>{if(e.key==='Enter')enterCode()}};
@@ -711,7 +711,7 @@ function renderGame(){
     el.innerHTML=`<div class="grid g2"><div class="grid" style="align-content:start">${codeBox}
       <div class="panel"><h2>${live.length?'Гра йде':'Зараз гра не йде'}</h2>
       <p class="note">${live.length?'Щоб грати, введіть код своєї команди.':'Гра відкривається лише на час слоту, який запускає організатор.'}</p>
-      ${next.length?`<div class="lines"><div><span class="mute">Наступна гра</span><span>${esc(next[0].title)}</span></div><div><span class="mute">Дата</span><span>${esc(b?.game)||'ще не призначена'}</span></div></div>`:''}
+      ${next.length?`<div class="lines"><div><span class="mute">Наступна гра</span><span>${esc(next[0].title)}</span></div><div><span class="mute">Дата</span><span>${esc(b?.game)||'ще не призначена'}</span></div>${next[0].time?`<div><span class="mute">Старт</span><b>${esc(next[0].time)} за Києвом</b></div>`:''}</div>`:''}
       ${isOrg()?`<button class="btn" data-go-admin>Відкрити керування іграми</button>`:''}</div></div>
       ${renderSeasonOverview()}</div>`;
     stdBind();return;
@@ -822,7 +822,7 @@ function renderRail(){
 }
 function renderSeasonOverview(){const s=season(),gs=seasonGames();
   return`<div class="panel"><div class="row sp"><h2>${esc(s.name)}</h2><span class="chip">${s.blocks.length} блоків</span></div><div class="tl">${s.blocks.map((b,i)=>{const g=gs.find(x=>x.blockId===b.id);
-    return`<div><span class="num">${i+1}</span><div><h3>${esc(b.name)}${b.final&&!/фінал/i.test(b.name)?' <span class="chip">фінал</span>':''}</h3></div><div class="dates">гра <b>${esc(b.game)||'дата не призначена'}</b>${g?`<br>${statusChip(g)}`:''}</div></div>`}).join('')}</div></div>`}
+    return`<div><span class="num">${i+1}</span><div><h3>${esc(b.name)}${b.final&&!/фінал/i.test(b.name)?' <span class="chip">фінал</span>':''}</h3></div><div class="dates">гра <b>${esc(b.game)||'дата не призначена'}${g&&g.time&&g.status==='planned'?' о '+esc(g.time):''}</b>${g?`<br>${statusChip(g)}`:''}</div></div>`}).join('')}</div></div>`}
 function statusChip(g){if(isLive(g))return'<span class="chip live">наживо</span>';if(g.status==='planned')return'<span class="chip">заплановано</span>';return'<span class="chip ok">зіграно</span>'}
 function bindCommon(root){root.querySelectorAll('[data-tabgo]').forEach(b=>b.onclick=()=>showTab(b.dataset.tabgo));root.querySelectorAll('[data-go-admin]').forEach(b=>b.onclick=()=>{adminSub='games';showTab('admin')})}
 
@@ -984,7 +984,7 @@ function adminGames(){
 let codesGid=null;
 function letterFor(g,t,code){const link=season()?.link||(location.origin+location.pathname);
   return{subject:`Hikvision Battle · ${g.title} · код команди «${t.name}»`,
-  body:`Вітаємо, капітане!\n\nКод вашої команди «${t.name}» для гри «${g.title}»:\n\n${code}\n\n1. Відкрийте сторінку гри${link?': '+link:''}.\n2. Введіть код у полі «Вхід для капітана».\n3. Дочекайтеся старту: питання з’являться автоматично.\n\nКод діє лише для цієї гри і лише на одному пристрої. Не пересилайте його.\n\nУспіхів!\nViatec Academy`}}
+  body:`Вітаємо, капітане!\n\nКод вашої команди «${t.name}» для гри «${g.title}»:\n\n${code}\n\n${g.time?`Старт: ${(blockOf(g)||{}).game||''} о ${g.time} за Києвом.\n\n`:''}1. Відкрийте сторінку гри${link?': '+link:''}.\n2. Введіть код у полі «Вхід для капітана».\n3. Дочекайтеся старту: питання з’являться автоматично.\n\nКод діє лише для цієї гри і лише на одному пристрої. Не пересилайте його.\n\nУспіхів!\nViatec Academy`}}
 function codesPanel(gid){
   const g=S.games[gid],teams=season().teams.filter(t=>!g.participants||g.participants.includes(t.id)),codes=(S.secret[gid]||{}).codes||{},own=claimOwners(gid);
   if(!g.hashes)return`<div class="panel" style="margin-top:18px"><div class="row sp"><h2>Коди · ${esc(g.title)}</h2></div>
