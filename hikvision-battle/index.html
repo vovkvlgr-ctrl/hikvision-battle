@@ -177,6 +177,7 @@ tr:nth-child(1) .pl{color:var(--med)}
 .edrow{display:grid;grid-template-columns:110px minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
 .edrow textarea{grid-column:2/4}
 @media (max-width:700px){.edrow{grid-template-columns:minmax(0,1fr)}.edrow textarea{grid-column:auto}}
+.ppl{font-size:12px;color:var(--mute,#9aa);white-space:normal;line-height:1.35;margin-top:3px;max-width:420px}
 .trow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.6fr) auto;gap:8px;align-items:center}
 textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font:inherit;color:inherit;width:100%;min-height:60px;resize:vertical}
 input[type=text],input[type=email]{width:100%}
@@ -463,6 +464,8 @@ function brandMap(){
 }
 function teamsList(){const se=season();if(!se)return[];const bm=brandMap();
   return se.teams.map((t,i)=>{const b=bm[t.id];return Object.assign({},t,{official:t.name,name:(b&&b.nick)||t.name,em:(b&&b.em)||t.em||defaultEm(i)})})}
+const teamPeople=id=>String(teamsMap()[id]?.people||'').split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+const peopleHtml=(id,st)=>{const p=teamPeople(id);return p.length?`<div class="ppl" style="${st||''}">👥 ${p.map(esc).join(' · ')}</div>`:''};
 const teamsMap=()=>{const m={};teamsList().forEach(t=>m[t.id]=t);return m};
 const teamEm=(id,size)=>emblem(teamsMap()[id]?.em,size);
 
@@ -835,7 +838,7 @@ function renderRating(){
   if(rtView==='players')rtView='teams';
   if(!R.ps.length)body=`<div class="empty">Ще немає жодної відповіді. Рейтинг з’явиться, щойно команди почнуть відповідати.</div>`;
   else if(rtView==='teams')body=`<div class="tw"><table><thead><tr><th>#</th><th>Команда</th><th>Регіон</th><th class="n">Відповідей</th><th class="n">Точність</th><th class="n">Камені</th><th>${single?'До цілі '+fmt(C.teamTarget):'Бали'}</th><th class="n">Разом</th></tr></thead><tbody>
-    ${R.ts.map((t,i)=>`<tr class="${t.id===me.team?'me':''}"><td><span class="pl">${i+1}</span></td><td><span class="row" style="gap:8px;flex-wrap:nowrap">${emblem(t.em,24)}${esc(t.name)}</span></td><td class="mute">${esc(t.reg)}</td><td class="n">${t.s.n}</td><td class="n">${pct(t.s.acc)}</td><td class="n">${gemsHtml(t.s.gems)}</td>
+    ${R.ts.map((t,i)=>`<tr class="${t.id===me.team?'me':''}"><td><span class="pl">${i+1}</span></td><td><span class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">${emblem(t.em,24)}<span>${esc(t.name)}${peopleHtml(t.id)}</span></span></td><td class="mute">${esc(t.reg)}</td><td class="n">${t.s.n}</td><td class="n">${pct(t.s.acc)}</td><td class="n">${gemsHtml(t.s.gems)}</td>
     <td><div class="hbar"><i style="width:${Math.max(0,t.total)/max*100}%"></i>${single?`<span class="tgt" style="left:${C.teamTarget/max*100}%"></span>`:''}</div></td><td class="n"><b>${fmt(t.total)}</b>${C.capOn&&single&&t.raw>t.total?`<br><small class="mute">з ${fmt(t.raw)}</small>`:''}</td></tr>`).join('')}</tbody></table></div>
     <p class="note">При рівних балах вище команда з більшою кількістю діамантів, потім рубінів. Якщо й вони рівні за призове місце — суперфінал.${single?` Червона риска — орієнтир ${fmt(C.teamTarget)} балів за гру.`:''}</p>`;
   else if(rtView==='players_off')body=`<div class="tw"><table><thead><tr><th>#</th><th>Гравець</th><th>Команда</th><th>Кластери</th><th class="n">Відп.</th><th class="n">Точність</th><th class="n">Сер. час</th><th class="n">База</th><th class="n">Швидк.</th><th class="n">Бонуси</th><th class="n">Разом</th></tr></thead><tbody>
@@ -939,7 +942,7 @@ function adminSeason(){
       <textarea data-b="${i}" data-f="desc" aria-label="Опис блоку">${esc(b.desc)}</textarea></div>`).join('')}</div>
     <button class="btn sm" id="addBlock">+ Додати блок</button>
     <h3>Команди</h3><p class="note">Одна команда — один капітан і один пристрій. На пошту капітана надсилається код перед кожною грою. Регіон потрібен для рейтингу регіонів: кілька команд одного міста отримують однаковий регіон.</p>
-    <div class="ed">${draft.teams.map((t,i)=>`<div class="trow"><input type="text" data-t="${i}" data-f="name" value="${esc(t.name)}" aria-label="Назва команди"><input type="text" data-t="${i}" data-f="reg" value="${esc(t.reg)}" placeholder="регіон" aria-label="Регіон"><input type="email" data-t="${i}" data-f="email" value="${esc(t.email||'')}" placeholder="пошта капітана" aria-label="Пошта капітана"><button class="btn sm del" data-delt="${i}" aria-label="Видалити команду">✕</button></div>${(()=>{const tb=teamsMap()[t.id];return tb&&(tb.name!==tb.official||brandMap()[t.id])?`<div class="row note" style="gap:8px;margin:-2px 0 6px">${emblem(tb.em,20)} Команда обрала: «${esc(tb.name)}» <button class="btn sm" data-rbrand="${i}">Скинути назву й емблему</button></div>`:''})()}`).join('')}</div>
+    <div class="ed">${draft.teams.map((t,i)=>`<div class="trow"><input type="text" data-t="${i}" data-f="name" value="${esc(t.name)}" aria-label="Назва команди"><input type="text" data-t="${i}" data-f="reg" value="${esc(t.reg)}" placeholder="регіон" aria-label="Регіон"><input type="email" data-t="${i}" data-f="email" value="${esc(t.email||'')}" placeholder="пошта капітана" aria-label="Пошта капітана"><button class="btn sm del" data-delt="${i}" aria-label="Видалити команду">✕</button></div><textarea data-t="${i}" data-f="people" rows="2" placeholder="Склад команди: ім’я та прізвище кожного учасника, через кому або з нового рядка" aria-label="Склад команди" style="min-height:44px;margin:4px 0 10px">${esc(t.people||'')}</textarea>${(()=>{const tb=teamsMap()[t.id];return tb&&(tb.name!==tb.official||brandMap()[t.id])?`<div class="row note" style="gap:8px;margin:-2px 0 6px">${emblem(tb.em,20)} Команда обрала: «${esc(tb.name)}» <button class="btn sm" data-rbrand="${i}">Скинути назву й емблему</button></div>`:''})()}`).join('')}</div>
     <button class="btn sm" id="addTeam">+ Додати команду</button></div>`;
 }
 function syncDraft(){$$('#tab-admin [data-b]').forEach(x=>{const b=draft.blocks[+x.dataset.b];if(!b)return;b[x.dataset.f]=x.type==='checkbox'?x.checked:x.value});
@@ -989,7 +992,7 @@ function codesPanel(gid){
     <button class="btn pri" id="genCodes">Створити коди для ${teams.length} команд</button></div>`;
   const rows=teams.map(t=>{const code=codes[t.id],o=own[t.id];
     const tb=teamsMap()[t.id];
-    return`<tr><td><span class="row" style="gap:8px;flex-wrap:nowrap">${emblem(tb.em,22)}<span>${esc(t.name)}${tb.name!==t.name?`<br><small class="mute">«${esc(tb.name)}»</small>`:''}</span></span></td><td class="mute">${esc(t.email||'—')}</td><td class="mono" style="font-size:17px;letter-spacing:.12em">${code?esc(code):'<span class="mute">—</span>'}</td>
+    return`<tr><td><span class="row" style="gap:8px;flex-wrap:nowrap">${emblem(tb.em,22)}<span>${esc(t.name)}${tb.name!==t.name?`<br><small class="mute">«${esc(tb.name)}»</small>`:''}${peopleHtml(t.id)}</span></span></td><td class="mute">${esc(t.email||'—')}</td><td class="mono" style="font-size:17px;letter-spacing:.12em">${code?esc(code):'<span class="mute">—</span>'}</td>
     <td>${o?`<span class="chip ok">увійшли ${hhmm(o.at)}</span>`:'<span class="chip">ще ні</span>'}</td>
     <td><div class="row" style="flex-wrap:nowrap;gap:6px">${code?`<button class="btn sm" data-copy="${esc(t.id)}">Копіювати лист</button>`:''}${code&&t.email?`<a class="btn sm" style="text-decoration:none" href="mailto:${encodeURIComponent(t.email)}?subject=${encodeURIComponent(letterFor(g,t,code).subject)}&body=${encodeURIComponent(letterFor(g,t,code).body)}">У пошту</a>`:''}${o?`<button class="btn sm" data-rclaim="${esc(t.id)}">Дозволити інший пристрій</button>`:''}</div></td></tr>`}).join('');
   return`<div class="panel" style="margin-top:18px"><div class="row sp"><h2>Коди · ${esc(g.title)}</h2><div class="row"><button class="btn sm" id="copyAll">Копіювати всі коди</button><button class="btn sm del" id="regenCodes">Створити нові коди</button></div></div>
@@ -1431,7 +1434,7 @@ function renderTeam(){
   const seen=new Set(),miss=[];
   mine.filter(g=>!isLive(g)).forEach(g=>(myAns.games[g.id].ev||[]).forEach(e=>{if(e.ok||seen.has(e.q))return;const q=S.questions[e.q];if(!q)return;seen.add(e.q);miss.push(Object.assign({id:e.q},q))}));
   el.innerHTML=`<div class="grid">
-   <div class="panel"><div class="row sp"><div><div class="label">Моя команда</div><div class="row" style="gap:12px;margin-top:6px">${teamEm(team,48)}<h2 style="font-size:28px;font-weight:800">${esc(tname)}</h2></div></div><span class="chip">${rank} місце в сезоні з ${RS.ts.filter(t=>t.s.n).length||RS.ts.length}</span></div>
+   <div class="panel"><div class="row sp"><div><div class="label">Моя команда</div><div class="row" style="gap:12px;margin-top:6px">${teamEm(team,48)}<h2 style="font-size:28px;font-weight:800">${esc(tname)}</h2></div>${peopleHtml(team,'font-size:14px;margin-top:8px')}</div><span class="chip">${rank} місце в сезоні з ${RS.ts.filter(t=>t.s.n).length||RS.ts.length}</span></div>
     <div class="grid g4"><div><div class="label">Бали за сезон</div><div class="big" style="font-size:34px">${fmt(tS?tS.total:0)}</div></div>
     <div><div class="label">Точність</div><div class="big" style="font-size:34px">${pct(s.acc)}</div></div>
     <div><div class="label">Камені</div><div class="big" style="font-size:30px">${gemsHtml(s.gems,26)}</div></div>
