@@ -659,10 +659,10 @@ function nextQ(){const P=pendGet(),done=new Set((myAns.games?.[G.gid]?.ev||[]).m
   Object.keys(P).forEach(k=>{if(!P[k]||done.has(P[k].id))delete P[k]});
   if(clLeft(G.gid,G.cl)<=0){const old=G.cl,nx=['e','m','h'].find(k=>clLeft(G.gid,k)>0);if(nx){G.cl=nx;setTimeout(()=>toast(`${CL[old].name}: усі питання пройдено, далі ${CL[nx].name}`),0)}}
   const pe=P[G.cl],src=pe&&qPool(S.games[G.gid]).find(q=>q.id===pe.id);
-  if(src){G.q=Object.assign({},src,{order:pe.order});G.used.add(src.id);G.qStart=pe.start}
+  if(src){G.q=Object.assign({},src,{order:pe.order});G.used.add(src.id);G.qStart=pe.el!=null?Date.now()-pe.el:pe.start;P[G.cl]={id:src.id,order:pe.order,start:G.qStart}}
   else{G.q=pickQ();G.qStart=Date.now();if(G.q)P[G.cl]={id:G.q.id,order:G.q.order,start:G.qStart}}
   pendSet(P);G.answered=false;G.fb=null}
-function setCl(cl){if(clLeft(G.gid,cl)<=0)return;G.cl=cl;if(G.state==='play'&&!G.answered)nextQ();renderGame()}
+function setCl(cl){if(clLeft(G.gid,cl)<=0)return;if(G.state==='play'&&!G.answered&&G.q&&cl!==G.cl){const P=pendGet();if(P[G.cl]&&P[G.cl].id===G.q.id){P[G.cl].el=Date.now()-G.qStart;pendSet(P)}}G.cl=cl;if(G.state==='play'&&!G.answered)nextQ();renderGame()}
 function answer(i){if(G.answered||G.state!=='play'||!G.q)return;if(!isLive(S.games[G.gid])){endRound();return}G.answered=true;
   const q=G.q,ok=i===q.a,t=+((Date.now()-G.qStart)/1000).toFixed(1);
   const ev={cl:q.cl,ok,t,q:q.id,topic:q.topic||'Інше',at:vnow()};
