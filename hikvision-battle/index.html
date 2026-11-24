@@ -994,7 +994,7 @@ function adminGames(){
 let codesGid=null;
 function letterFor(g,t,code){const link=season()?.link||(location.origin+location.pathname);
   return{subject:`Hikvision Battle · ${g.title} · код команди «${t.name}»`,
-  body:`Вітаємо, капітане!\n\nКод вашої команди «${t.name}» для гри «${g.title}»:\n\n${code}\n\n${g.time?`Старт: ${(blockOf(g)||{}).game||''} о ${g.time} за Києвом.\n\n`:''}1. Відкрийте сторінку гри${link?': '+link:''}\n2. Введіть код у полі «Код із листа» і натисніть «Увійти».\n3. Дочекайтеся старту: питання з’являться автоматично.\n\nКод діє лише для цієї гри і лише на одному пристрої. Не пересилайте його.\n\nУспіхів!\nViatec Academy`}}
+  body:`Вітаємо, капітане!\n\nКод вашої команди «${t.name}» для гри «${g.title}»:\n\n${code}\n\n${g.time?`Старт: ${(blockOf(g)||{}).game||''} о ${g.time} за Києвом.\n\n`:''}1. Відкрийте сторінку гри${link?': '+link:''}\n2. Введіть код у полі «Код із листа» і натисніть «Увійти».\n3. Дочекайтеся старту о ${g.time||'призначений час'} і натисніть «▶ Почати раунд».\n\nКод діє лише для цієї гри і лише на одному пристрої. Не пересилайте його.\n\nУспіхів!\nViatec Academy`}}
 function codesPanel(gid){
   const g=S.games[gid],teams=season().teams.filter(t=>!g.participants||g.participants.includes(t.id)),codes=(S.secret[gid]||{}).codes||{},own=claimOwners(gid);
   if(!g.hashes)return`<div class="panel" style="margin-top:18px"><div class="row sp"><h2>Коди · ${esc(g.title)}</h2></div>
