@@ -665,7 +665,7 @@ function nextQ(){const P=pendGet(),done=new Set((myAns.games?.[G.gid]?.ev||[]).m
 function setCl(cl){if(clLeft(G.gid,cl)<=0)return;if(G.state==='play'&&!G.answered&&G.q&&cl!==G.cl){const P=pendGet();if(P[G.cl]&&P[G.cl].id===G.q.id){P[G.cl].el=Date.now()-G.qStart;pendSet(P)}}G.cl=cl;if(G.state==='play'&&!G.answered)nextQ();renderGame()}
 function answer(i){if(G.answered||G.state!=='play'||!G.q)return;if(!isLive(S.games[G.gid])){endRound();return}G.answered=true;
   const q=G.q,ok=i===q.a,t=+((Date.now()-G.qStart)/1000).toFixed(1);
-  const ev={cl:q.cl,ok,t,q:q.id,topic:q.topic||'Інше',at:vnow()};
+  const ev={cl:q.cl,ok,t,q:q.id,ch:i,topic:q.topic||'Інше',at:vnow()};
   myAns.games=myAns.games||{};const mg=myAns.games[G.gid];if(!mg){endRound();return}
   mg.ev=mg.ev||[];const g0=scoreEvents(mg.ev,sc()).gems;mg.ev.push(ev);const g1=scoreEvents(mg.ev,sc()).gems;
   if(!S.games[G.gid]?.superfinal){if(g1.d>g0.d)setTimeout(()=>toast('Діамант! 5 правильних HARD поспіль'),50);else if(g1.r>g0.r)setTimeout(()=>toast('Рубін! 5 правильних MEDIUM поспіль'),50)}
@@ -864,10 +864,22 @@ function renderRating(){
 }
 
 /* ================= ANALYTICS ================= */
+async function exportXlsx(){const XLSX=await loadXLSX(),R=compute(scopeIds()),C=R.C,tm=teamsMap(),CLN={e:'EASY',m:'MEDIUM',h:'HARD'};
+  const lim=c=>c==='e'?C.qTimeE:c==='m'?C.qTimeM:C.qTimeH,pct=x=>Math.round(x*1000)/10,hms=ms=>new Date(ms).toLocaleTimeString('uk-UA',{timeZone:'Europe/Kiev'});
+  const opt=(q,i)=>q&&i!=null&&q.o?q.o[i]:'—';
+  const sum=R.ts.map((t,i)=>{const s=t.s||finS(scoreEvents([],C));return{'Місце':i+1,'Команда':t.name,'Склад':(tm[t.id]?.people||''),'Разом балів':t.total,'Бали за відповіді':s.base,'Бонус «всі кластери»':s.bAll,'Бонус HARD':s.bHard,'Діаманти':s.gems?.d||0,'Рубіни':s.gems?.r||0,'Відповідей':s.n,'Правильних':s.ok,'Точність, %':pct(s.acc||0),'EASY прав.':s.okc.e,'MEDIUM прав.':s.okc.m,'HARD прав.':s.okc.h,'Сер. час, с':+(s.avgT||0).toFixed(1)}});
+  const ans=R.ev.slice().sort((a,b)=>(tm[a.team]?.name||'').localeCompare(tm[b.team]?.name||'')||a.at-b.at).map(e=>{const q=S.questions[e.q],p=evPts(e,C);return{'Команда':tm[e.team]?.name||'','Гра':S.games[e.gid]?.title||'','Час':hms(e.at),'ID питання':e.q,'Кластер':CLN[e.cl],'Тема':e.topic,'Питання':q?.q||'','Відповідь команди':e.to?'—':opt(q,e.ch),'Правильна відповідь':opt(q,q?.a),'Результат':e.to?'Час вийшов':e.ok?'Правильно':'Помилка','Час на відповідь, с':e.t,'Ліміт, с':lim(e.cl),'Бали':p.base+p.speed}});
+  const byQ={};R.ev.forEach(e=>{const x=byQ[e.q]||(byQ[e.q]={n:0,ok:0,t:0,to:0,wr:{}});x.n++;if(e.ok)x.ok++;x.t+=e.t;if(e.to)x.to++;else if(!e.ok&&e.ch!=null)x.wr[e.ch]=(x.wr[e.ch]||0)+1});
+  const qs=Object.entries(byQ).map(([id,x])=>{const q=S.questions[id],w=Object.entries(x.wr).sort((a,b)=>b[1]-a[1])[0];return{'ID':id,'Кластер':CLN[q?.cl]||'','Тема':q?.topic||'','Питання':q?.q||'','Правильна відповідь':opt(q,q?.a),'Відповідей':x.n,'Правильно':x.ok,'% правильних':pct(x.ok/x.n),'Сер. час, с':+(x.t/x.n).toFixed(1),'Час вийшов':x.to,'Найчастіша помилка':w?opt(q,+w[0]):'—','Скільки разів':w?w[1]:0}}).sort((a,b)=>a['% правильних']-b['% правильних']);
+  const byT={};R.ev.forEach(e=>{const x=byT[e.topic]||(byT[e.topic]={n:0,ok:0,t:0,tm:{}});x.n++;if(e.ok)x.ok++;x.t+=e.t;const y=x.tm[e.team]||(x.tm[e.team]={n:0,ok:0});y.n++;if(e.ok)y.ok++});
+  const tps=Object.entries(byT).map(([tp,x])=>{const r={'Тема':tp,'Відповідей':x.n,'% правильних':pct(x.ok/x.n),'Сер. час, с':+(x.t/x.n).toFixed(1)};R.ts.forEach(t=>{const y=x.tm[t.id];r[t.name]=y?pct(y.ok/y.n):''});return r}).sort((a,b)=>a['% правильних']-b['% правильних']);
+  const wb=XLSX.utils.book_new(),add=(rows,name,w)=>{const ws=XLSX.utils.json_to_sheet(rows);if(w)ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
+  add(sum,'Підсумок',[7,20,50,11,11,11,11,9,9,10,10,10,10,10,10,10]);add(ans,'Усі відповіді',[18,16,10,12,9,16,60,34,34,12,10,8,7]);add(qs,'По питаннях',[12,9,16,60,34,10,10,10,9,9,34,9]);add(tps,'По темах',[20,10,11,9]);
+  const sc=rtScope==='season'?'сезон':(S.games[rtScope]?.title||'гра');XLSX.writeFile(wb,`Hikvision_Battle_${sc.replace(/[^\p{L}\p{N}]+/gu,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`)}
 function renderAnalytics(){
   const el=$('#tab-analytics');if(!season()){el.innerHTML='';return}
   const R=compute(scopeIds()),ev=R.ev;
-  const head=`<div class="row" style="margin-bottom:16px">${scopeSelect('anScope')}</div>`;
+  const head=`<div class="row" style="margin-bottom:16px">${scopeSelect('anScope')}${isOrg()&&ev.length?'<button class="btn pri" id="xlExport">⬇ Скачати Excel</button>':''}</div>`;
   if(!ev.length){el.innerHTML=head+`<div class="empty">Аналітика з’явиться після перших відповідей.</div>`;$('#anScope').onchange=e=>{rtScope=e.target.value;renderRating();renderAnalytics()};return}
   const acc=f=>{const e=ev.filter(f);return{n:e.length,a:e.length?e.filter(x=>x.ok).length/e.length:0}};
   const topics=[...new Set(ev.map(e=>e.topic))];
@@ -884,7 +896,7 @@ function renderAnalytics(){
    <div class="legend"><span><i class="sw" style="background:${heatColor(.45)}"></i>до 50%</span><span><i class="sw" style="background:${heatColor(.68)}"></i>~70%</span><span><i class="sw" style="background:${heatColor(.92)}"></i>90%+</span><span>Червона мітка — тема нижче 65%, кандидат на додаткове навчання.</span></div></div>
    <div class="grid g2"><div class="panel"><h3>Теми від найслабшої</h3><div class="lines">${byTopic.map(t=>`<div><span>${esc(t.t)}</span><span class="mono">${pct(t.a)} <span class="mute">· ${t.n}</span></span></div>`).join('')}</div></div>
    <div class="panel"><h3>Найважчі питання</h3>${byQ.length?`<div class="lines">${byQ.map(x=>{const t=x.q.model||x.q.q;return`<div><span style="min-width:0"><span class="chip ${x.q.cl}" style="margin-right:6px">${CL[x.q.cl].name}</span>${esc(t.slice(0,60))}${t.length>60?'…':''}</span><span class="mono">${pct(x.a)}</span></div>`}).join('')}</div>`:'<p class="note">Потрібно щонайменше 3 відповіді на питання.</p>'}</div></div></div>`;
-  $('#anScope').onchange=e=>{rtScope=e.target.value;renderRating();renderAnalytics()};
+  $('#anScope').onchange=e=>{rtScope=e.target.value;renderRating();renderAnalytics()};{const xb=$('#xlExport');if(xb)xb.onclick=async()=>{xb.disabled=true;try{await exportXlsx();toast('Файл завантажено.')}catch(e){console.warn(e);toast('Не вдалося створити файл.')}xb.disabled=false}};
 }
 
 /* ================= RULES ================= */
