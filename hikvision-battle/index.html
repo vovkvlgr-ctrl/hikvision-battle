@@ -868,6 +868,69 @@ function renderRating(){
 }
 
 /* ================= ANALYTICS ================= */
+function ceoReport(){const R=compute(scopeIds()),C=R.C,ev=R.ev,ts=R.ts.filter(t=>t.s&&t.s.n),tm=teamsMap();if(!ev.length){toast('Ще немає відповідей.');return}
+  const E=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),N=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' '),P=x=>Math.round(x*100)+'%';
+  const acc=f=>{const e=ev.filter(f);return e.length?e.filter(x=>x.ok).length/e.length:0};
+  const g1=rtScope!=='season'?S.games[rtScope]:null,b=g1&&blockOf(g1),title=g1?g1.title:(season().name||'Сезон');
+  const people=ts.reduce((a,t)=>a+teamPeople(t.id).length,0),avgT=ev.reduce((a,e)=>a+e.t,0)/ev.length,bh=ts.filter(t=>t.s.bHard).length,mx=Math.max(1,...ts.map(t=>t.total));
+  const pod=ts.slice(0,3),gem=s=>'💎'.repeat(s.gems?.d||0)+'<b class="ruby">◆</b>'.repeat(s.gems?.r||0);
+  const top={};ev.forEach(e=>{const x=top[e.topic]||(top[e.topic]={n:0,ok:0,q:new Set()});x.n++;if(e.ok)x.ok++;x.q.add(e.q)});
+  const tps=Object.entries(top).map(([k,x])=>({k,a:x.ok/x.n,nq:x.q.size})).sort((a,b)=>a.a-b.a),weak=tps.slice(0,3),strong=tps[tps.length-1];
+  const ties=ts.filter((t,i)=>ts.some((u,j)=>j!==i&&R.cmp(t,u)===0));
+  const pd=(t,k)=>t?`<div class="pd p${k}"><div class="t">${E(t.name)}</div><div class="s">${N(t.total)}</div><small>${P(t.s.acc)} точність · HARD ${t.s.okc.h}/${t.s.cnt.h}${t.s.bHard?' · бонус +'+t.s.bHard:''}</small><div class="block">${k}</div></div>`:'<div></div>';
+  const html=`<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Звіт · ${E(title)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Golos+Text:wght@400;500;600&display=swap"><style>
+/* layout: one-page executive brief — score hero, podium, ranking bars, knowledge map, actions */
+:root{--bg:#f3f6fa;--surface:#ffffff;--fg:#0e1a2b;--mute:#5a6b80;--line:#dbe3ee;--ice:#0b7fb3;--ice-soft:#d9eef8;--hard:#b91c1c;--med:#d97706;--easy:#15803d;--ruby:#be123c;--warn-bg:#fff4e5;
+--f-display:"Unbounded","Arial Black",system-ui,sans-serif;--f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#08111d;--surface:#0f1c2e;--fg:#e8f1fb;--mute:#93a6bd;--line:#1e3048;--ice:#5cc8f2;--ice-soft:#12324a;--hard:#fb923c;--med:#fbbf24;--easy:#4ade80;--ruby:#fb7185;--warn-bg:#2a1d0c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#08111d;--surface:#0f1c2e;--fg:#e8f1fb;--mute:#93a6bd;--line:#1e3048;--ice:#5cc8f2;--ice-soft:#12324a;--hard:#fb923c;--med:#fbbf24;--easy:#4ade80;--ruby:#fb7185;--warn-bg:#2a1d0c;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px;display:grid;gap:22px}
+.sample{background:var(--warn-bg);border:1px dashed var(--med);color:var(--fg);padding:8px 14px;border-radius:8px;font-size:14px}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);font-weight:600}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,5vw,44px);line-height:1.05;margin:6px 0 4px;text-wrap:balance}
+h1 em{font-style:normal;color:var(--ice)}
+h2{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0 0 14px}
+.meta{color:var(--mute)}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.kpi{background:var(--surface);padding:14px 16px}.kpi b{display:block;font-family:var(--f-display);font-size:26px;font-variant-numeric:tabular-nums}.kpi span{color:var(--mute);font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:end;gap:12px}
+.pd{text-align:center;display:grid;gap:6px}.pd .t{font-weight:600}.pd .s{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
+.pd .block{border-radius:10px 10px 0 0;background:var(--ice-soft);color:var(--ice);font-family:var(--f-display);font-weight:800;font-size:30px;display:grid;place-items:center}
+.pd.p1 .block{height:120px;background:var(--ice);color:var(--surface)}.pd.p2 .block{height:86px}.pd.p3 .block{height:64px}
+.pd small{color:var(--mute);font-size:13px}
+ol.rank{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.r{display:grid;grid-template-columns:28px minmax(0,190px) minmax(0,1fr) 56px 64px;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.r:last-child{border-bottom:0}.pl{font-family:var(--f-display);color:var(--mute);font-size:14px}.top .pl{color:var(--ice)}
+.nm{font-weight:600;min-width:0}.nm small{display:block;font-weight:400;color:var(--mute);font-size:12px}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ice);border-radius:6px}
+.top .bar i{background:linear-gradient(90deg,var(--ice),var(--easy))}
+.gm{font-size:13px;text-align:right}.ruby{color:var(--ruby);font-size:12px}.pt{text-align:right;font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.cl{display:grid;gap:12px}.cl div{display:grid;grid-template-columns:76px 1fr 44px;gap:10px;align-items:center;font-size:14px}
+.cl .bar{height:14px}.cl .e i{background:var(--easy)}.cl .m i{background:var(--med)}.cl .h i{background:var(--hard)}
+.cl b{text-align:right;font-variant-numeric:tabular-nums}
+ul.gap{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+ul.gap li{display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:baseline}
+ul.gap b{font-family:var(--f-display);font-size:18px;color:var(--hard);font-variant-numeric:tabular-nums}ul.gap .ok{color:var(--easy)}
+ul.gap span small{display:block;color:var(--mute);font-size:13px}
+.act{display:grid;gap:10px;margin:0;padding-left:20px}
+.note{color:var(--mute);font-size:13px}
+@media (max-width:720px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis .kpi:last-child{grid-column:span 2}.two{grid-template-columns:1fr}.r{grid-template-columns:24px minmax(0,1fr) 52px;}.r .bar,.r .gm{display:none}}
+ .tools{display:flex;justify-content:flex-end}.tools button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}@media print{.tools{display:none}body{background:#fff}}</style></head><body><div class="wrap">
+<div class="tools"><button onclick="print()">Друк / PDF</button></div>
+<header><div class="eyebrow">Viatec Academy · ${E(season().name||'Hikvision Battle')}</div><h1>${E(title).replace(' · ',' · <em>')}${title.includes(' · ')?'</em>':''}</h1><div class="meta">${b&&b.game?E(b.game)+' · ':''}${g1&&g1.time?'старт '+E(g1.time)+' · ':''}${ts.length} команд · ${people} учасників</div></header>
+<section class="kpis"><div class="kpi"><b>${N(ev.length)}</b><span>відповідей</span></div><div class="kpi"><b>${P(acc(()=>1))}</b><span>правильних загалом</span></div><div class="kpi"><b>${P(acc(e=>e.cl==='h'))}</b><span>точність на HARD</span></div><div class="kpi"><b>${Math.round(avgT)} с</b><span>середній час відповіді</span></div><div class="kpi"><b>${bh} з ${ts.length}</b><span>команд взяли бонус HARD ≥90%</span></div></section>
+<section class="card"><h2>Переможці</h2><div class="podium">${pd(pod[1],2)}${pd(pod[0],1)}${pd(pod[2],3)}</div></section>
+<section class="card"><h2>Рейтинг команд</h2><ol class="rank">${ts.map((t,i)=>`<li class="r${i<3?' top':''}"><span class="pl">${i+1}</span><span class="nm">${E(t.name)}<small>${P(t.s.acc)} точність · HARD ${t.s.okc.h}/${t.s.cnt.h}</small></span><span class="bar"><i style="width:${Math.max(0,t.total)/mx*100}%"></i></span><span class="gm">${gem(t.s)}</span><span class="pt">${N(t.total)}</span></li>`).join('')}</ol>
+<p class="note" style="margin:12px 0 0">💎 діамант · <span class="ruby">◆</span> рубін.${ties.length?' Однакові бали й камені: '+ties.map(t=>E(t.name)).join(', ')+'.':''}</p></section>
+<div class="two"><section class="card"><h2>Точність за складністю</h2><div class="cl">${['e','m','h'].map(k=>`<div class="${k}"><span>${CL[k].name}</span><span class="bar"><i style="width:${acc(e=>e.cl===k)*100}%"></i></span><b>${P(acc(e=>e.cl===k))}</b></div>`).join('')}</div></section>
+<section class="card"><h2>Де провали в знаннях</h2><ul class="gap">${weak.map(w=>`<li><b>${P(w.a)}</b><span>${E(w.k)}<small>${w.nq} пит.</small></span></li>`).join('')}${strong?`<li><b class="ok">${P(strong.a)}</b><span>Сильна сторона: ${E(strong.k)}<small>${strong.nq} пит.</small></span></li>`:''}</ul></section></div>
+<section class="card"><h2>Що робимо далі</h2><ol class="act"><li>Міні-навчання по темах: ${weak.map(w=>E(w.k)).join(', ')}.</li><li>Повторити ці теми в питаннях наступної гри, щоб перевірити прогрес.</li>${pod[0]?`<li>Відзначити команду «${E(pod[0].name)}»: ${N(pod[0].total)} балів, ${P(pod[0].s.acc)} точність.</li>`:''}</ol></section>
+<p class="note">Повна статистика — кнопка «Скачати Excel» в аналітиці гри.</p></div></body></html>`;
+  const w=window.open('','_blank');if(!w){toast('Дозвольте спливаючі вікна для цього сайту.');return}w.document.open();w.document.write(html);w.document.close()}
 async function exportXlsx(){const XLSX=await loadXLSX(),R=compute(scopeIds()),C=R.C,tm=teamsMap(),CLN={e:'EASY',m:'MEDIUM',h:'HARD'};
   const lim=c=>c==='e'?C.qTimeE:c==='m'?C.qTimeM:C.qTimeH,pct=x=>Math.round(x*1000)/10,hms=ms=>new Date(ms).toLocaleTimeString('uk-UA',{timeZone:'Europe/Kiev'});
   const opt=(q,i)=>q&&i!=null&&q.o?q.o[i]:'—';
@@ -883,7 +946,7 @@ async function exportXlsx(){const XLSX=await loadXLSX(),R=compute(scopeIds()),C=
 function renderAnalytics(){
   const el=$('#tab-analytics');if(!season()){el.innerHTML='';return}
   const R=compute(scopeIds()),ev=R.ev;
-  const head=`<div class="row" style="margin-bottom:16px">${scopeSelect('anScope')}${isOrg()&&ev.length?'<button class="btn pri" id="xlExport">⬇ Скачати Excel</button>':''}</div>`;
+  const head=`<div class="row" style="margin-bottom:16px">${scopeSelect('anScope')}${isOrg()&&ev.length?'<button class="btn pri" id="xlExport">⬇ Скачати Excel</button><button class="btn" id="ceoRep">📄 Звіт для СЕО</button>':''}</div>`;
   if(!ev.length){el.innerHTML=head+`<div class="empty">Аналітика з’явиться після перших відповідей.</div>`;$('#anScope').onchange=e=>{rtScope=e.target.value;renderRating();renderAnalytics()};return}
   const acc=f=>{const e=ev.filter(f);return{n:e.length,a:e.length?e.filter(x=>x.ok).length/e.length:0}};
   const topics=[...new Set(ev.map(e=>e.topic))];
@@ -900,7 +963,7 @@ function renderAnalytics(){
    <div class="legend"><span><i class="sw" style="background:${heatColor(.45)}"></i>до 50%</span><span><i class="sw" style="background:${heatColor(.68)}"></i>~70%</span><span><i class="sw" style="background:${heatColor(.92)}"></i>90%+</span><span>Червона мітка — тема нижче 65%, кандидат на додаткове навчання.</span></div></div>
    <div class="grid g2"><div class="panel"><h3>Теми від найслабшої</h3><div class="lines">${byTopic.map(t=>`<div><span>${esc(t.t)}</span><span class="mono">${pct(t.a)} <span class="mute">· ${t.n}</span></span></div>`).join('')}</div></div>
    <div class="panel"><h3>Найважчі питання</h3>${byQ.length?`<div class="lines">${byQ.map(x=>{const t=x.q.model||x.q.q;return`<div><span style="min-width:0"><span class="chip ${x.q.cl}" style="margin-right:6px">${CL[x.q.cl].name}</span>${esc(t.slice(0,60))}${t.length>60?'…':''}</span><span class="mono">${pct(x.a)}</span></div>`}).join('')}</div>`:'<p class="note">Потрібно щонайменше 3 відповіді на питання.</p>'}</div></div></div>`;
-  $('#anScope').onchange=e=>{rtScope=e.target.value;renderRating();renderAnalytics()};{const xb=$('#xlExport');if(xb)xb.onclick=async()=>{xb.disabled=true;try{await exportXlsx();toast('Файл завантажено.')}catch(e){console.warn(e);toast('Не вдалося створити файл.')}xb.disabled=false}};
+  $('#anScope').onchange=e=>{rtScope=e.target.value;renderRating();renderAnalytics()};{const cr=$('#ceoRep');if(cr)cr.onclick=()=>ceoReport()}{const xb=$('#xlExport');if(xb)xb.onclick=async()=>{xb.disabled=true;try{await exportXlsx();toast('Файл завантажено.')}catch(e){console.warn(e);toast('Не вдалося створити файл.')}xb.disabled=false}};
 }
 
 /* ================= RULES ================= */
