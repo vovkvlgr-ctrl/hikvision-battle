@@ -651,7 +651,17 @@ function pickQ(){const g=S.games[G.gid];const all=qPool(g).filter(q=>q.cl===G.cl
   const q=pool[Math.floor(Math.random()*pool.length)];G.used.add(q.id);const order=q.o.map((_,i)=>i);if(q.o.length>2)order.sort(()=>Math.random()-.5);return Object.assign({},q,{order})}
 function startRound(){const g=S.games[G.gid];if(g&&g.superfinal)G.cl='h';if((myAns.games?.[G.gid]?.ev||[]).length>=gameLimit(g)){G.state='done';G.roundEv=[];renderGame();return}if(!isLive(g)){toast('Гра вже завершилася.');G.state='idle';renderGame();return}
   G.state='play';G.roundEv=[];G.roundEnd=Date.now()+Math.min(sc().round>0?sc().round*1000:Infinity,g.endsAt-vnow());nextQ();renderGame()}
-function nextQ(){if(clLeft(G.gid,G.cl)<=0){const old=G.cl,nx=['e','m','h'].find(k=>clLeft(G.gid,k)>0);if(nx){G.cl=nx;setTimeout(()=>toast(`${CL[old].name}: усі питання пройдено, далі ${CL[nx].name}`),0)}}G.q=pickQ();G.qStart=Date.now();G.answered=false;G.fb=null}
+/* a shown question keeps its own clock: switching clusters or reloading never restarts it */
+const pendKey=()=>'hbpend_'+(G.gid||'')+'_'+(S.uid||'');
+function pendGet(){try{return JSON.parse(localStorage.getItem(pendKey())||'{}')}catch(e){return G._pend||{}}}
+function pendSet(P){G._pend=P;try{localStorage.setItem(pendKey(),JSON.stringify(P))}catch(e){}}
+function nextQ(){const P=pendGet(),done=new Set((myAns.games?.[G.gid]?.ev||[]).map(e=>e.q));
+  Object.keys(P).forEach(k=>{if(!P[k]||done.has(P[k].id))delete P[k]});
+  if(clLeft(G.gid,G.cl)<=0){const old=G.cl,nx=['e','m','h'].find(k=>clLeft(G.gid,k)>0);if(nx){G.cl=nx;setTimeout(()=>toast(`${CL[old].name}: усі питання пройдено, далі ${CL[nx].name}`),0)}}
+  const pe=P[G.cl],src=pe&&qPool(S.games[G.gid]).find(q=>q.id===pe.id);
+  if(src){G.q=Object.assign({},src,{order:pe.order});G.used.add(src.id);G.qStart=pe.start}
+  else{G.q=pickQ();G.qStart=Date.now();if(G.q)P[G.cl]={id:G.q.id,order:G.q.order,start:G.qStart}}
+  pendSet(P);G.answered=false;G.fb=null}
 function setCl(cl){if(clLeft(G.gid,cl)<=0)return;G.cl=cl;if(G.state==='play'&&!G.answered)nextQ();renderGame()}
 function answer(i){if(G.answered||G.state!=='play'||!G.q)return;if(!isLive(S.games[G.gid])){endRound();return}G.answered=true;
   const q=G.q,ok=i===q.a,t=+((Date.now()-G.qStart)/1000).toFixed(1);
