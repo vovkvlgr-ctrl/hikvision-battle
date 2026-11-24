@@ -181,6 +181,7 @@ tr:nth-child(1) .pl{color:var(--med)}
 #tab-board .g-board>.grid .panel{background:color-mix(in srgb,var(--panel) 52%,transparent);backdrop-filter:none}
 #tab-board::after{content:"";position:absolute;right:calc(min(36%,470px)*.55);top:-10px;width:min(14%,175px);aspect-ratio:260/120;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20260%20120%22%3E%3Cpath%20d%3D%22M14%208h232a10%2010%200%200%201%2010%2010v58a10%2010%200%200%201-10%2010H190l18%2030-44-30H14A10%2010%200%200%201%204%2076V18A10%2010%200%200%201%2014%208z%22%20fill%3D%22%23fff%22%20stroke%3D%22%23111%22%20stroke-width%3D%225%22%20stroke-linejoin%3D%22round%22/%3E%3Ctext%20x%3D%22130%22%20y%3D%2260%22%20text-anchor%3D%22middle%22%20font-family%3D%22Comic%20Sans%20MS%2CComic%20Neue%2CArial%20Black%2Csans-serif%22%20font-weight%3D%22900%22%20font-size%3D%2234%22%20fill%3D%22%23111%22%3E%D0%AF%20%D0%B2%D0%B0%D1%81%20%D0%B1%D0%B0%D1%87%D1%83%21%3C/text%3E%3C/svg%3E") no-repeat center/contain;transform:rotate(-6deg);z-index:2;pointer-events:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35))}
 #tab-board::before{content:"";position:absolute;right:-2%;top:150px;width:min(36%,470px);aspect-ratio:64/75;background:url(img/boardface.png) no-repeat center/contain;image-rendering:pixelated;opacity:.5;z-index:-1;pointer-events:none;-webkit-mask-image:linear-gradient(180deg,#000 70%,transparent);mask-image:linear-gradient(180deg,#000 70%,transparent)}
+#bStats.g5{grid-template-columns:repeat(5,minmax(0,1fr))}@media (max-width:900px){#bStats.g5{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .ppl{font-size:12px;color:var(--mute,#9aa);white-space:normal;line-height:1.35;margin-top:3px;max-width:420px}
 .trow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1.6fr) auto;gap:8px;align-items:center}
 textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font:inherit;color:inherit;width:100%;min-height:60px;resize:vertical}
@@ -1310,7 +1311,7 @@ function renderBoard(){
       <div id="bWin"></div>
       <div class="grid g-board"><div class="panel"><div class="row sp"><h3>Команди</h3><span class="label" id="bTarget"></span></div><div id="bRows" class="brows"></div></div>
       <div class="grid" style="align-content:start"><div class="panel"><h3>Стрічка відповідей</h3><div id="bFeed"></div></div><div class="panel"><h3>Лідери за HARD</h3><div id="bTop" class="lines"></div></div></div></div>
-      <div class="grid g4" id="bStats" style="margin-top:18px"></div>`;
+      <div class="grid g4 g5" id="bStats" style="margin-top:18px"></div>`;
   }
   $('#bTitle').textContent=g.title;
   boardClock();
@@ -1348,7 +1349,7 @@ function renderBoard(){
     return`<div class="fd${isNew?' new':''}"><span class="fn">${teamEm(e.team,18)} <b>${esc(tm[e.team]?.name||names[e.uid]||'Команда')}</b> <span class="mute">${esc(e.topic)}</span></span><span class="row" style="gap:6px;flex-wrap:nowrap;flex-shrink:0"><span class="chip ${e.cl}">${CL[e.cl].name}</span><span class="mono ${e.ok?'okc':'badc'}">${e.to?'⏱':e.ok?'✓':'✗'} ${R.mythic?(e.ok?'+1 '+gemIcon('m',13):'0'):(pts>=0?'+':'')+pts}</span></span></div>`}).join('')||'<p class="note">Чекаємо на першу відповідь…</p>';
   $('#bTop').innerHTML=R.ts.filter(t=>t.s.n).sort((a,b)=>b.s.okc.h-a.s.okc.h).slice(0,5).map((t,i)=>`<div><span class="row" style="gap:8px;flex-wrap:nowrap"><span class="pl">${i+1}</span>${emblem(t.em,20)}${esc(t.name)}</span><span class="mono">${t.s.okc.h} <span class="mute">з ${t.s.cnt.h}</span></span></div>`).join('')||'<div><span class="mute">Поки порожньо</span></div>';
   const all=finS(R.ev.reduce((a,e)=>addS(a,scoreEvents([e],C)),null)||scoreEvents([],C));
-  $('#bStats').innerHTML=[['Точність',pct(all.acc)],['Частка HARD',pct(all.hardShare)],['Сер. час відповіді',all.avgT.toFixed(1)+' с'],['Бонусів за кластери',R.ts.filter(t=>t.s.bAll||t.s.bHard).length]]
+  $('#bStats').innerHTML=[['Точність',pct(all.acc)],['Частка HARD',pct(all.hardShare)],['Сер. час відповіді',all.avgT.toFixed(1)+' с'],['Бонус «всі кластери»',R.ts.filter(t=>t.s.bAll).length+' з '+R.ts.length],['Бонус HARD ≥90%',R.ts.filter(t=>t.s.bHard).length+' з '+R.ts.length]]
     .map(([l,v])=>`<div class="panel"><div class="label">${l}</div><div class="big" style="font-size:32px">${v}</div></div>`).join('');
 }
 function boardClock(){const c=$('#bClock');if(!c||!board.gid)return;const g=S.games[board.gid];if(!g)return;
