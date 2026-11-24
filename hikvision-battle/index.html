@@ -177,6 +177,8 @@ tr:nth-child(1) .pl{color:var(--med)}
 .edrow{display:grid;grid-template-columns:110px minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
 .edrow textarea{grid-column:2/4}
 @media (max-width:700px){.edrow{grid-template-columns:minmax(0,1fr)}.edrow textarea{grid-column:auto}}
+#tab-board{position:relative;isolation:isolate}
+#tab-board::before{content:"";position:absolute;right:-1%;top:230px;width:min(34%,440px);aspect-ratio:64/75;background:url(img/boardface.png) no-repeat center/contain;image-rendering:pixelated;opacity:.5;z-index:-1;pointer-events:none;-webkit-mask-image:linear-gradient(180deg,#000 70%,transparent);mask-image:linear-gradient(180deg,#000 70%,transparent)}
 .ppl{font-size:12px;color:var(--mute,#9aa);white-space:normal;line-height:1.35;margin-top:3px;max-width:420px}
 .trow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1.6fr) auto;gap:8px;align-items:center}
 textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font:inherit;color:inherit;width:100%;min-height:60px;resize:vertical}
