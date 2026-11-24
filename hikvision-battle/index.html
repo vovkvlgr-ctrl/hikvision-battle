@@ -204,7 +204,7 @@ input[type=text],input[type=email]{width:100%}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:700px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .brows{position:relative;margin-top:6px}
-.brow{position:absolute;left:0;right:0;top:0;height:46px;display:grid;grid-template-columns:34px 30px minmax(0,190px) minmax(0,1fr) 20px 78px 84px;gap:12px;align-items:center;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.brow{position:absolute;left:0;right:0;top:0;height:66px;display:grid;grid-template-columns:28px 30px minmax(0,170px) minmax(0,1fr) 16px 56px 70px 52px;gap:12px;align-items:center;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
 .brow .rk{font:700 18px/1 var(--f-disp);color:var(--mute)}
 .brow .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brow .bb{height:14px;background:var(--bg);border-radius:4px;overflow:hidden}
@@ -213,7 +213,17 @@ input[type=text],input[type=email]{width:100%}
 .brow.first .rk{color:var(--med)}
 .brow .pt{font:600 20px/1 var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
 .brow .mv{font-size:12px;text-align:center}.mv.up{color:var(--easy)}.mv.down{color:var(--rec)}
-@media (max-width:560px){.brow{grid-template-columns:26px 28px minmax(0,1fr) 14px 58px 64px}.brow .bb{display:none}}
+@media (max-width:560px){.brow{grid-template-columns:26px 28px minmax(0,1fr) 14px 58px 64px 46px}.brow .bw{display:none}}
+.brow .nm{display:flex;align-items:center;gap:8px;position:relative;overflow:visible}.brow .nt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.brow .tk{width:30px;height:auto;image-rendering:pixelated;flex:none;border-radius:4px;filter:drop-shadow(0 0 6px var(--glow,rgba(92,200,242,.5)))}
+.brow .tk.pop{animation:tkpop .6s cubic-bezier(.2,1.6,.4,1)}@keyframes tkpop{0%{transform:scale(0) rotate(-20deg)}100%{transform:scale(1)}}
+.brow .tkb{position:absolute;left:calc(100% - 40px);top:-22px;background:#fff;color:#111;font:800 12px/1 system-ui;font-style:normal;padding:5px 8px;border-radius:8px;border:2px solid #111;white-space:nowrap;z-index:3}
+.brow .bw{display:grid;gap:5px;min-width:0}.brow .sg{display:grid;grid-template-columns:25fr 15fr 10fr;gap:4px}
+.brow .sg b{height:4px;background:var(--bg);border-radius:3px;overflow:hidden}.brow .sg i{display:block;height:100%;transition:width .7s ease}
+.brow .se i{background:var(--easy)}.brow .sm i{background:var(--med)}.brow .sh i{background:var(--hard)}
+.brow .sn{display:flex;gap:10px;white-space:nowrap;overflow:hidden;font:500 10.5px/1 var(--f-mono);letter-spacing:.02em}.brow .sn .e{color:var(--easy)}.brow .sn .m{color:var(--med)}.brow .sn .h{color:var(--hard)}
+.brow .cn{font:600 14px/1 var(--f-mono);text-align:right;color:var(--mute);font-variant-numeric:tabular-nums}.brow .cn.fin{color:var(--easy)}
+.finc{color:var(--easy)}
 .fd{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line);font-size:13.5px;border-radius:4px}
 .fd .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fd.new{animation:flash 1.4s ease-out}
@@ -1305,20 +1315,26 @@ function renderBoard(){
   $('#bTitle').textContent=g.title;
   boardClock();
   // rows
-  const rowsEl=$('#bRows'),ts=R.ts,max=Math.max(1,...ts.map(t=>t.total)),H=54,now=Date.now();
+  const rowsEl=$('#bRows'),ts=R.ts,max=Math.max(1,...ts.map(t=>t.total)),H=74,now=Date.now();
   rowsEl.style.height=(ts.length*H)+'px';
   ts.forEach((t,i)=>{let row=document.getElementById('br_'+t.id);
-    if(!row){row=document.createElement('div');row.className='brow';row.id='br_'+t.id;row.innerHTML='<span class="rk"></span><span class="ei"></span><span class="nm"></span><span class="bb"><i></i></span><span class="mv"></span><span class="gm"></span><span class="pt"></span>';rowsEl.appendChild(row);row.style.transform=`translateY(${i*H}px)`}
+    if(!row){row=document.createElement('div');row.className='brow';row.id='br_'+t.id;row.innerHTML='<span class="rk"></span><span class="ei"></span><span class="nm"><span class="nt"></span><img class="tk" src="img/boardface.png" alt="Фініш" hidden><em class="tkb" hidden>Фініш!</em></span><span class="bw"><span class="bb"><i></i></span><span class="sg"><b class="se"><i></i></b><b class="sm"><i></i></b><b class="sh"><i></i></b></span><span class="sn"></span></span><span class="mv"></span><span class="gm"></span><span class="pt"></span><span class="cn"></span>';rowsEl.appendChild(row);row.style.transform=`translateY(${i*H}px)`}
     const pr=board.prev[t.id];if(pr!==undefined&&pr!==i)board.moves[t.id]={up:i<pr,until:now+2500};board.prev[t.id]=i;
     const mv=board.moves[t.id];
     row.style.transform=`translateY(${i*H}px)`;row.classList.toggle('first',i===0&&t.total>0);
-    row.querySelector('.rk').textContent=i+1;row.querySelector('.nm').textContent=t.name;const ei=row.querySelector('.ei'),ek=JSON.stringify(t.em);if(ei.dataset.k!==ek){ei.dataset.k=ek;ei.innerHTML=emblem(t.em,28)}
+    row.querySelector('.rk').textContent=i+1;row.querySelector('.nt').textContent=t.name;
+    {const s=t.s||{cnt:{e:0,m:0,h:0},n:0},Q={e:R.C.qE,m:R.C.qM,h:R.C.qH},lim=gameLimit(g),fin=s.n>=lim&&lim>0;
+     [['se','e'],['sm','m'],['sh','h']].forEach(([c,k])=>row.querySelector('.'+c+' i').style.width=Math.min(100,(s.cnt[k]||0)/Q[k]*100)+'%');
+     row.querySelector('.sn').innerHTML=`<span class="e">EASY ${s.cnt.e||0}/${Q.e}</span><span class="m">MEDIUM ${s.cnt.m||0}/${Q.m}</span><span class="h">HARD ${s.cnt.h||0}/${Q.h}</span>`;
+     const cn=row.querySelector('.cn');cn.textContent=`${s.n||0}/${lim}`;cn.classList.toggle('fin',fin);
+     const tk=row.querySelector('.tk'),was=!tk.hidden;tk.hidden=!fin;row.classList.toggle('fin',fin);
+     if(fin&&!was&&board.seen.size){const b=row.querySelector('.tkb');b.hidden=false;tk.classList.add('pop');setTimeout(()=>{b.hidden=true;tk.classList.remove('pop')},3500)}}const ei=row.querySelector('.ei'),ek=JSON.stringify(t.em);if(ei.dataset.k!==ek){ei.dataset.k=ek;ei.innerHTML=emblem(t.em,28)}
     row.querySelector('.bb i').style.width=Math.max(0,t.total)/max*100+'%';
     row.querySelector('.pt').innerHTML=(R.mythic?gemIcon('m',18)+' ':'')+fmt(t.total);const gm=row.querySelector('.gm'),gk=JSON.stringify(t.s.gems||{});if(gm.dataset.k!==gk){gm.dataset.k=gk;gm.innerHTML=R.mythic?'':gemsHtml(t.s.gems,15)}
     const m=row.querySelector('.mv');if(mv&&mv.until>now){m.textContent=mv.up?'▲':'▼';m.className='mv '+(mv.up?'up':'down')}else{m.textContent='';m.className='mv'}
   });
   [...rowsEl.children].forEach(r=>{if(!ts.find(t=>'br_'+t.id===r.id))r.remove()});
-  $('#bTarget').textContent=`${R.ts.filter(t=>t.s.n).length} команд · ${fmt(R.ev.length)} відповідей`;
+  {const lim=gameLimit(g),nf=R.ts.filter(t=>t.s&&t.s.n>=lim).length;$('#bTarget').innerHTML=`<b class="finc">${nf} з ${R.ts.length} фінішували</b> · ${fmt(R.ev.length)} відповідей`}
   // winner
   const w=$('#bWin');
   if(!live&&ts[0]&&ts[0].total>0){const tied=ts.filter(t=>R.cmp(ts[0],t)===0),tie=tied.length>1,byGems=!tie&&ts[1]&&ts[1].total===ts[0].total;
